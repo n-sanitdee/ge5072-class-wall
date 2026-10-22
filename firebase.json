@@ -1,0 +1,13 @@
+{
+  "database": {
+    "rules": "database.rules.json"
+  },
+  "emulators": {
+    "database": {"host": "127.0.0.1", "port": 9010},
+    "auth": {"host": "127.0.0.1", "port": 9109},
+    "ui": {"enabled": false},
+    "hub": {"host": "127.0.0.1", "port": 4410},
+    "logging": {"host": "127.0.0.1", "port": 4510},
+    "singleProjectMode": true
+  }
+}
