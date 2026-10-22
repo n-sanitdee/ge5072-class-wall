@@ -20,6 +20,8 @@ export type HostView = {
   pub: Pub;
   teams: Record<string, Team>;
   posts: Record<string, Post>;
+  /** Wk14 chart: which chart each name was given. */
+  assign: Record<string, number>;
   createdAt: number;
   connected: boolean;
   offset: number;
@@ -42,7 +44,7 @@ export function orderedTeams(teams: Record<string, Team>): [string, Team][] {
 export function revealBlocker(v: Pick<HostView, 'pub' | 'teams' | 'posts'>): string | null {
   const ids = Object.keys(v.teams);
   const posted = ids.filter((id) => v.posts[id]).length;
-  if (v.pub.revealed) return null;
+  if (v.pub.revealed || v.pub.live) return null;
   if (!ids.length) return 'nobody';
   if (posted < ids.length) return 'waiting';
   const expected = v.pub.expected ?? 0;
@@ -62,6 +64,7 @@ export class WallHost {
   private thumbCache = new Map<string, Promise<string | null>>();
   private photoCache = new Map<string, Promise<string | null>>();
   private revealing = false;
+  private assignLoaded = false;
   /** Tests switch this off to check the manual path. */
   autoReveal = true;
 
@@ -78,6 +81,7 @@ export class WallHost {
       preset: preset.id,
       section: w.section,
       photo: preset.id === 'custom' ? !!w.photo : preset.photo,
+      live: !!preset.live,
       revealed: false,
       locked: false,
       expected: 0,
@@ -95,7 +99,7 @@ export class WallHost {
         throw e;
       }
       const meta = await get(ref(db, `walls/${code}/meta/createdAt`));
-      const host = new WallHost(db, {code, pub, teams: {}, posts: {}, createdAt: meta.val() ?? Date.now(), connected: true, offset: 0});
+      const host = new WallHost(db, {code, pub, teams: {}, posts: {}, assign: {}, createdAt: meta.val() ?? Date.now(), connected: true, offset: 0});
       host.attach();
       return host;
     }
@@ -111,7 +115,7 @@ export class WallHost {
     if (!meta?.exists() || meta.val().hostUid !== uid) return null;
     const pub = (await get(ref(db, `walls/${code}/pub`))).val() as Pub | null;
     if (!pub || pub.ended) return null;
-    const host = new WallHost(db, {code, pub, teams: {}, posts: {}, createdAt: meta.val().createdAt, connected: true, offset: 0});
+    const host = new WallHost(db, {code, pub, teams: {}, posts: {}, assign: {}, createdAt: meta.val().createdAt, connected: true, offset: 0});
     host.attach();
     return host;
   }
@@ -141,6 +145,34 @@ export class WallHost {
     });
     on<Record<string, Team>>(`${this.base}/teams`, (teams) => this.changed({teams: teams ?? {}}));
     on<Record<string, Post>>(`${this.base}/posts`, (posts) => this.changed({posts: posts ?? {}}));
+    if (getPreset(this.view.pub.preset).charts) {
+      on<Record<string, number>>(`${this.base}/assign`, (assign) => {
+        this.assignLoaded = true;
+        this.patch({assign: assign ?? {}});
+        this.assignCharts();
+      });
+    }
+  }
+
+  /**
+   * Wk14: give every new name a chart, in turn — the chart fewest names have, so the four stay even even after
+   * removals. A name keeps its chart once given.
+   */
+  private assignCharts() {
+    const charts = getPreset(this.view.pub.preset).charts;
+    if (!charts || !this.assignLoaded || this.view.pub.revealed) return;
+    const assign = {...this.view.assign};
+    const writes: Record<string, number> = {};
+    for (const [id] of orderedTeams(this.view.teams)) {
+      if (assign[id] !== undefined) continue;
+      const used = charts.map((_, c) => Object.keys(this.view.teams).filter((t) => assign[t] === c).length);
+      const c = used.indexOf(Math.min(...used));
+      assign[id] = c;
+      writes[id] = c;
+    }
+    if (!Object.keys(writes).length) return;
+    this.patch({assign});
+    update(ref(this.db, `${this.base}/assign`), writes).catch(() => {});
   }
 
   subscribe(fn: (v: HostView) => void): () => void {
@@ -157,6 +189,7 @@ export class WallHost {
   private changed(p: Partial<HostView>) {
     this.patch(p);
     this.scheduleRoster();
+    this.assignCharts();
     this.maybeReveal();
   }
 
@@ -178,7 +211,7 @@ export class WallHost {
   }
 
   private maybeReveal() {
-    if (!this.autoReveal || this.revealing || this.view.pub.revealed) return;
+    if (!this.autoReveal || this.revealing || this.view.pub.revealed || this.view.pub.live) return;
     if (revealBlocker(this.view) === null) void this.reveal();
   }
 
@@ -218,6 +251,7 @@ export class WallHost {
       [`posts/${tid}`]: null,
       [`thumbs/${tid}`]: null,
       [`photos/${tid}`]: null,
+      [`assign/${tid}`]: null,
       [`kicked/${tid}`]: true,
     };
     if (t) paths[`names/${t.name.toLowerCase().split(' ').join('')}`] = null;

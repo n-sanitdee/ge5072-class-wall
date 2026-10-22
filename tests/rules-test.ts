@@ -12,8 +12,8 @@ const live = process.argv.includes('--live');
 const backend = live ? {config: firebaseConfig} : {config: EMULATOR_CONFIG, emulatorHost: '127.0.0.1'};
 let failures = 0;
 let passes = 0;
-function check(label: string, ok: boolean) {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}`);
+function check(label: string, ok: boolean, extra = '') {
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${extra && !ok ? ` (${extra})` : ''}`);
   if (ok) passes++;
   else failures++;
 }
@@ -177,9 +177,54 @@ const tp = new WallClient(openDatabase(backend, 'tp').db, textWall.view.code);
 await tp.join('Sunny team');
 check('text wall: branch notes are accepted', await allowed(tp.post({fields: {f0: 'rose by 20% in May', f4: 'a sharp rise in followers'}})));
 check('text wall: photos are refused', await denied(tp.post({fields: {f0: 'x'}, image: {full: JPEG, thumb: JPEG}})));
-check('text wall: field keys are f0–f9 only', await denied(set(ref(tp.db, `walls/${textWall.view.code}/posts/${tp.tid}`), {at: serverTimestamp(), fields: {sales: 'x'}})));
+check('text wall: field keys are f0–f9 / b0–b9 only', await denied(set(ref(tp.db, `walls/${textWall.view.code}/posts/${tp.tid}`), {at: serverTimestamp(), fields: {sales: 'x'}})));
+check('text wall: the builder inputs (b0) are stored with the sentence', await allowed(tp.post({fields: {f0: 'Sales rose sharply by 20% in May.', b0: JSON.stringify({s: 0, v: 0, a: 0, p: 'by', x: '20%', w: 4})}})));
+check('text wall: a field is capped at 400 characters', await denied(set(ref(tp.db, `walls/${textWall.view.code}/posts/${tp.tid}`), {at: serverTimestamp(), fields: {f0: 'x'.repeat(401)}})));
 await textWall.finish();
 check('text wall deleted by the host', !(await get(ref(hostApp.db, `walls/${textWall.view.code}/meta`))).exists());
+
+// Wk14 chart wall: the host gives each name a chart; a post's chart must be the one it was given
+const chartWall = await WallHost.create(hostApp.db, uid, {preset: 'wk14-chart', section: 'TS66'});
+const cw = `walls/${chartWall.view.code}`;
+const cps = [0, 1, 2, 3, 4].map((k) => new WallClient(openDatabase(backend, `cp${k}`).db, chartWall.view.code));
+for (const c of cps) {
+  await c.join(`Chart pair ${cps.indexOf(c) + 1}`);
+  c.watch();
+}
+await sleep(1200);
+const given = cps.map((c) => c.state.chart);
+check('every name was given a chart', given.every((g) => typeof g === 'number'), JSON.stringify(given));
+check('charts go round in turn (0 1 2 3 0)', JSON.stringify(given) === '[0,1,2,3,0]', JSON.stringify(given));
+check('a name cannot change its chart', await denied(set(ref(cps[0].db, `${cw}/assign/${cps[0].tid}`), 2)));
+check('a stranger cannot list the charts given', await denied(get(ref(xdb, `${cw}/assign`))));
+check('a post with another chart is refused', await denied(cps[1].post({fields: {f0: 'Followers rose.'}, choice: 3})));
+check('a post with its own chart is accepted', await allowed(cps[1].post({fields: {f0: 'Followers rose sharply to 15,000 in April.'}, choice: 1})));
+await chartWall.remove(cps[2].tid!);
+const late = new WallClient(openDatabase(backend, 'cp-late').db, chartWall.view.code);
+await late.join('Late pair');
+late.watch();
+await sleep(1000);
+check('after a removal the next name gets the chart nobody has (2)', late.state.chart === 2, String(late.state.chart));
+await chartWall.finish();
+for (const c of [...cps, late]) c.stop();
+
+// Custom wall: live — posts show straight away (Mew, 22 Oct 2026)
+const liveWall = await WallHost.create(hostApp.db, uid, {preset: 'custom', section: 'AC21', title: 'Best slogan', prompt: 'One slogan for the café.'});
+const lw = `walls/${liveWall.view.code}`;
+check('custom wall is live', liveWall.view.pub.live === true && !liveWall.view.pub.revealed);
+const solo = new WallClient(openDatabase(backend, 'solo').db, liveWall.view.code);
+await solo.join('Mint');
+check('live wall: a single name can post', await allowed(solo.post({text: 'Coffee that wakes up your ideas.'})));
+check('live wall: a stranger can read the posts straight away', await allowed(get(ref(xdb, `${lw}/posts`))));
+check('live wall: and the names', await allowed(get(ref(xdb, `${lw}/teams`))));
+check('live wall: the post can still be edited', await allowed(solo.post({text: 'Coffee that wakes up your best ideas.'})));
+await sleep(300);
+check('live wall: host sees the edit', liveWall.view.posts[solo.tid!]?.text === 'Coffee that wakes up your best ideas.');
+check('live wall: the host never auto-reveals it', revealBlocker(liveWall.view) === null && !liveWall.view.pub.revealed);
+check('live flag cannot be switched off', await denied(set(ref(hostApp.db, `${lw}/pub/live`), false)));
+check('a hidden wall cannot be switched to live', await denied(set(ref(hostApp.db, `${base}/pub/live`), true)));
+await liveWall.finish();
+solo.stop();
 
 // Another signed-in user (e.g. a student who opened #host) cannot touch this wall
 const other = openDatabase(backend, 'other-host');

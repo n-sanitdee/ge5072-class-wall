@@ -54,6 +54,8 @@ export type WallState = {
   inWall: boolean | null;
   removed: boolean;
   mine?: Post | null;
+  /** Wk14 chart: the chart Ladpet gave this name (undefined = not yet). */
+  chart?: number;
   /** After the reveal: everyone's posts. */
   teams: Record<string, Team>;
   posts: Record<string, Post>;
@@ -91,7 +93,7 @@ export class WallClient {
     this.mineUnsubs = [];
     this.tid = null;
     this.name = '';
-    this.patch({inWall: null, removed: false, mine: undefined});
+    this.patch({inWall: null, removed: false, mine: undefined, chart: undefined});
   }
 
   private get base() {
@@ -150,7 +152,7 @@ export class WallClient {
     on<boolean>('.info/connected', (c) => this.patch({connected: !!c}));
     on<Pub>(`${this.base}/pub`, (pub) => {
       this.patch({pub});
-      if (pub?.revealed) this.watchWall();
+      if (pub?.revealed || pub?.live) this.watchWall();
     });
     if (this.tid) this.watchMine();
   }
@@ -163,6 +165,7 @@ export class WallClient {
     on<Team>(`${this.base}/teams/${tid}`, (t) => this.patch({inWall: !!t}));
     on<boolean>(`${this.base}/kicked/${tid}`, (k) => this.patch({removed: !!k}));
     on<Post>(`${this.base}/posts/${tid}`, (p) => this.patch({mine: p}));
+    on<number>(`${this.base}/assign/${tid}`, (c) => this.patch({chart: typeof c === 'number' ? c : undefined}));
   }
 
   private watchWall() {

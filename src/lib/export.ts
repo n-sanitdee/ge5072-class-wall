@@ -1,5 +1,6 @@
 // "Save the Ladpet": one self-contained HTML file (photos embedded) — KPI teaching-technique evidence.
 import {GOOD_P, NINE, type Preset, fullTitle, titleParts} from './presets.ts';
+import {chartSvg} from '../ui/chart-svg.ts';
 import type {Post, Pub, Team} from './types.ts';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]!);
@@ -34,21 +35,32 @@ export function buildWallHtml(opts: {
   const posted = teams.filter(([id]) => posts[id]);
   const when = date.toLocaleString('en-GB', {dateStyle: 'full', timeStyle: 'short'});
   const accent = preset.theme === 'teal' ? '#0f766e' : '#4f46e5';
-  const cards = posted
-    .map(([id, t]) => {
-      const p = posts[id];
-      const parts: string[] = [];
-      const img = photos[id];
-      if (img) parts.push(`<img src="${img}" alt="${esc(t.name)}">`);
-      if (preset.charts && typeof p.choice === 'number') parts.push(`<div class="tag">📈 ${esc(preset.charts[p.choice].title)}</div>`);
-      const items = preset.fields?.items ?? [];
-      const filled = items.map((f, i) => [f.label, p.fields?.[`f${i}`]] as const).filter(([, v]) => v);
-      if (preset.id === 'wk14-chart') parts.push(...filled.map(([, v], i) => `<p class="${i ? 'more' : 'best'}">${esc(v!)}</p>`));
-      else if (filled.length) parts.push(`<dl>${filled.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v!)}</dd>`).join('')}</dl>`);
-      if (p.text) parts.push(`<p class="text">${esc(p.text)}</p>`);
-      return `<article><h2>${esc(t.name)}</h2>${parts.join('')}</article>`;
-    })
-    .join('\n');
+  const card = ([id, t]: [string, Team]) => {
+    const p = posts[id];
+    const parts: string[] = [];
+    const img = photos[id];
+    const f = (i: number) => p.fields?.[`f${i}`];
+    if (img) parts.push(`<img src="${img}" alt="${esc(t.name)}">`);
+    if (preset.frames) parts.push(`<p class="para">${esc(preset.frames.map((_, i) => f(i)).filter(Boolean).join(' '))}</p>`);
+    if (preset.builder) {
+      const rows = preset.builder.map((b, i) => (f(i) ? `<dt>${esc(b.label)}</dt><dd>${esc(f(i)!)}</dd>` : '')).join('');
+      if (rows) parts.push(`<dl>${rows}</dl>`);
+    }
+    if (preset.fields) parts.push(...preset.fields.items.map((_, i) => (f(i) ? `<p class="${i ? 'more' : 'best'}">${esc(f(i)!)}</p>` : '')));
+    if (p.text) parts.push(`<p class="text">${esc(p.text)}</p>`);
+    return `<article><h2>${esc(t.name)}</h2>${parts.join('')}</article>`;
+  };
+  const accentHi = preset.theme === 'teal' ? '#d9480f' : '#db2777';
+  const cards = preset.charts
+    ? preset.charts
+        .map((c, ci) => {
+          const group = posted.filter(([id]) => posts[id].choice === ci);
+          return group.length
+            ? `<section class="chart"><div class="chart-head">Chart ${ci + 1} · ${esc(c.title)}</div>${chartSvg(c, {accent: accentHi})}</section>\n${group.map(card).join('\n')}`
+            : '';
+        })
+        .join('\n')
+    : posted.map(card).join('\n');
   const missing = teams.filter(([id]) => !posts[id]).map(([, t]) => esc(t.name));
   const fixes =
     preset.id === 'wk13-spot9'
@@ -73,13 +85,16 @@ article img{width:100%;border-radius:8px;border:1px solid #e3e5f1;display:block;
 .best{font-size:17px;font-weight:600;margin:4px 0}.more{margin:4px 0;color:#334155}
 dl{margin:0}dt{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-top:6px}dd{margin:2px 0 0}
 .text{white-space:pre-wrap;margin:4px 0}
+.para{margin:2px 0;line-height:1.5}
+section.chart{break-inside:avoid;background:#fff;border:2px solid var(--accent);border-radius:14px;padding:10px 12px;margin:0 0 16px}
+.chart-head{font-weight:800;font-size:15px;margin-bottom:4px}
 .fixes{margin:0 28px 28px;background:#fff;border:1px solid #e3e5f1;border-radius:14px;padding:14px 18px}
 mark{background:none;color:#db2777;font-weight:700}
 footer{padding:0 28px 28px;color:#64748b;font-size:13px}
 @media print{main{columns:3}article{border-color:#ccc}}
 </style></head><body>
 <header><div class="k">Ladpet · ${esc(pub.section)}</div><h1>${lead ? `<span class="lead">${esc(lead)}</span> ` : ''}${esc(title)}</h1>
-<p>${esc(when)} · ${posted.length} ${preset.who === 'group' ? 'groups' : 'pairs'} posted${missing.length ? ` · not posted: ${missing.join(', ')}` : ''}</p></header>
+<p>${esc(when)} · ${posted.length} ${posted.length === 1 ? 'post' : 'posts'}${missing.length ? ` · not posted: ${missing.join(', ')}` : ''}</p></header>
 ${pub.prompt ? `<p style="margin:16px 28px 0;font-size:18px">${esc(pub.prompt)}</p>` : ''}
 <main>
 ${cards || '<p>No posts.</p>'}

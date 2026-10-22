@@ -11,6 +11,8 @@ export type Pub = {
   section: string;
   /** Photo posts allowed (fixed when the wall is made). */
   photo: boolean;
+  /** Custom walls: every post shows straight away, no hidden phase (fixed when the wall is made). */
+  live?: boolean;
   /** Custom walls only: the question shown on the phones. */
   prompt?: string;
   /** One-way: once true, every post is readable and no post can change. */
@@ -34,9 +36,9 @@ export type Team = {name: string; joinedAt: number};
 export type Post = {
   at: number;
   text?: string;
-  /** Branch boxes / sentences, keyed f0…f9. */
+  /** f0…f9 = the finished sentence of each branch / line; b0…b9 = the guided inputs as JSON (for editing). */
   fields?: Record<string, string>;
-  /** Wk14 chart choice (0–3). */
+  /** Wk14: the chart Ladpet gave this name (0–3). */
   choice?: number;
   /** A photo is stored under thumbs/<tid> and photos/<tid>. */
   photo?: true;
@@ -56,7 +58,7 @@ export const STALE_MS = 3 * 60 * 60 * 1000;
 export const LIMITS = {
   name: 24,
   text: 1000,
-  field: 300,
+  field: 400,
   thumbChars: 200_000,
   photoChars: 1_500_000,
 };

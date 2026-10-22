@@ -5,7 +5,7 @@ import {openDatabase, signInHost} from '../lib/fb.ts';
 import {GOOD_P, NINE, PRESETS, type Preset, fullTitle, getPreset, titleParts, whoWord} from '../lib/presets.ts';
 import {SECTIONS, type PresetId} from '../lib/types.ts';
 import {type HostView, WallHost, orderedTeams, revealBlocker} from '../lib/wall-host.ts';
-import {APP_NAME, CARD_TINTS, DbImage, PostBody, Rich, Spinner, formatCode} from '../ui/common.tsx';
+import {APP_NAME, CARD_TINTS, ChartCard, DbImage, PostBody, Rich, Spinner, formatCode} from '../ui/common.tsx';
 import {Qr} from '../ui/Qr.tsx';
 
 const SAVED = 'cw:host';
@@ -153,7 +153,7 @@ function Setup({
         <Logo />
         <div>
           <h1>{APP_NAME}</h1>
-          <p>GE5072 class wall · pairs and groups post from their phones. Posts stay hidden — only names show — until everyone has posted.</p>
+          <p>GE5072 class wall · everyone posts from their phone. Posts stay hidden — only names show — until everyone has posted (the custom wall shows posts straight away).</p>
         </div>
       </header>
 
@@ -207,7 +207,15 @@ function Setup({
                   <span className="preset-kind">{p.id === 'custom' ? p.activity : `${p.week} · ${p.activity}:`}</span>
                   <span className="preset-title">{p.id === 'custom' ? 'Your own question' : p.title}</span>
                   <span className="preset-meta">
-                    {p.id === 'custom' ? 'title + question · text (photo optional)' : `${p.who === 'group' ? 'Project groups' : 'Pairs'} · ${p.photo ? 'photo or text' : 'text only'}`}
+                    {p.id === 'custom'
+                      ? 'your title + question · posts show straight away'
+                      : p.charts
+                        ? 'Pairs · Ladpet gives each name a chart'
+                        : p.frames
+                          ? 'Project groups · fill-in sentences → one paragraph'
+                          : p.builder
+                            ? 'Project groups · tap-to-build trend sentences'
+                            : `${p.who === 'group' ? 'Project groups' : 'Pairs'} · ${p.photo ? 'photo or text' : 'text only'}`}
                   </span>
                 </button>
               ))}
@@ -240,8 +248,8 @@ function Setup({
         {err && <span className="error">{err}</span>}
       </div>
       <p className="setup-foot">
-        Students scan the QR code on the next screen. Nicknames only — no student IDs. A wall is deleted when you press
-        Finish &amp; delete, or 3 hours after it was opened.
+        Students scan the Ladpet QR on the next screen and type a name — nicknames only, no student IDs. Everything is
+        deleted when you press Finish &amp; delete, or 3 hours after the Ladpet was opened.
       </p>
     </div>
   );
@@ -263,17 +271,27 @@ function Logo() {
 function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onClose: () => void}) {
   const preset = getPreset(view.pub.preset);
   const teams = orderedTeams(view.teams);
-  const postedIds = teams.filter(([id]) => view.posts[id]).map(([id]) => id);
+  const live = !!view.pub.live;
+  const shown = view.pub.revealed || live;
+  // Wk14 chart: cards sit under their chart, so the board and the big view go chart by chart
+  const postedIds = teams
+    .filter(([id]) => view.posts[id])
+    .map(([id]) => id)
+    .sort((x, y) => (preset.charts ? (view.posts[x].choice ?? 99) - (view.posts[y].choice ?? 99) : 0));
   const blocker = revealBlocker(view);
   const [spot, setSpot] = useState<number | null>(null);
   const [showQr, setShowQr] = useState(false);
+  const [joinPanel, setJoinPanel] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
-  const revealed = view.pub.revealed;
-  const who = whoWord(preset);
-  const whos = whoWord(preset, true);
-  const Who = who[0].toUpperCase() + who.slice(1);
+  const thumbs = useMemo(() => new Map<string, () => Promise<string | null>>(), [host]);
+  const thumbOf = (id: string) => {
+    const key = `${id}@${view.posts[id]?.at}`;
+    let l = thumbs.get(key);
+    if (!l) thumbs.set(key, (l = () => host.thumb(id)));
+    return l;
+  };
 
   useEffect(() => {
     document.title = `${fullTitle(preset, view.pub.title)} · ${view.pub.section} · ${APP_NAME}`;
@@ -292,14 +310,50 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
   }
 
   async function finish() {
-    const msg = saved || !revealed
-      ? 'Finish and delete this wall? Phones will show "This wall has ended".'
-      : 'You have not saved the wall yet. Finish and delete it anyway?';
+    const msg =
+      saved || !postedIds.length || !shown
+        ? 'Finish and delete this Ladpet? Phones will show "This wall has ended".'
+        : 'You have not saved this Ladpet yet. Finish and delete it anyway?';
     if (!confirm(msg)) return;
     setBusy(true);
     await host.finish().catch(() => {});
     onClose();
   }
+
+  const card = (id: string, i: number) => {
+    const t = view.teams[id];
+    const p = view.posts[id];
+    return (
+      <article key={id} className="card" style={{background: CARD_TINTS[i % CARD_TINTS.length]}} onClick={() => setSpot(postedIds.indexOf(id))}>
+        <h2>{t.name}</h2>
+        {p.photo && <DbImage load={thumbOf(id)} alt={t.name} className="thumb" />}
+        <PostBody post={p} preset={preset} />
+      </article>
+    );
+  };
+  const notPosted = teams.filter(([id]) => !view.posts[id]).map(([, t]) => t.name);
+
+  const joinAside = (
+    <aside className="join-panel">
+      <Qr text={studentUrl(view.code)} className="qr" />
+      <div className="join-url">{studentUrl().replace(/^https?:\/\//, '').replace(/\/$/, '')}</div>
+      <div className="join-code-label">Ladpet code</div>
+      <div className="join-code">{formatCode(view.code)}</div>
+      <ol className="join-steps">
+        <li>Scan the Ladpet QR</li>
+        <li>Type your name{preset.who === 'pair' ? ' (a pair: both nicknames)' : preset.who === 'group' ? ' (a group: your group name)' : ''}</li>
+        <li>
+          {preset.id === 'wk13-spot9'
+            ? 'Post one marked screenshot per pair'
+            : preset.charts
+              ? 'Ladpet gives you a chart — post your best sentence'
+              : live
+                ? 'Post — it appears here straight away'
+                : `Post${preset.who === 'anyone' ? '' : ` one answer per ${whoWord(preset)}`}`}
+        </li>
+      </ol>
+    </aside>
+  );
 
   return (
     <div className={`host wall-screen theme-${preset.theme}`}>
@@ -315,18 +369,23 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
           <span className={`conn ${view.connected ? 'ok' : 'off'}`} title={view.connected ? 'Connected' : 'Offline — reconnecting'}>
             {view.connected ? '●' : '○ offline'}
           </span>
-          {revealed && preset.id === 'wk13-spot9' && (
+          {view.pub.revealed && preset.id === 'wk13-spot9' && (
             <button className="btn" onClick={() => host.setFixes(!view.pub.fixes)}>
               {view.pub.fixes ? 'Hide the fixes' : 'Show the nine fixes'}
             </button>
           )}
-          {revealed && (
-            <button className="btn" onClick={() => setShowQr(true)}>
+          {live && (
+            <button className="btn" onClick={() => host.setLocked(!view.pub.locked)}>
+              {view.pub.locked ? 'Open joining' : 'Close joining'}
+            </button>
+          )}
+          {(view.pub.revealed || (live && !joinPanel)) && (
+            <button className="btn" onClick={() => (live ? setJoinPanel(true) : setShowQr(true))}>
               QR
             </button>
           )}
-          {revealed && (
-            <button className="btn" onClick={save} disabled={saving}>
+          {shown && (
+            <button className="btn" onClick={save} disabled={saving || !postedIds.length}>
               {saving ? 'Saving…' : saved ? 'Saved ✓ (save again)' : 'Save the Ladpet'}
             </button>
           )}
@@ -339,30 +398,46 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
         </div>
       </header>
 
-      {!revealed ? (
+      {live ? (
+        // Custom wall: posts show as they arrive (Mew, 22 Oct 2026) — the QR stays beside the wall until hidden
+        <div className={`live ${joinPanel ? 'with-join' : ''}`}>
+          {joinPanel && (
+            <div className="live-side">
+              {joinAside}
+              <button className="link" onClick={() => setJoinPanel(false)}>
+                Hide the QR
+              </button>
+            </div>
+          )}
+          <div className="live-main">
+            {view.pub.prompt && <p className="live-prompt">{view.pub.prompt}</p>}
+            <p className="status-line">
+              <b>{postedIds.length}</b> posts
+              {notPosted.length > 0 && ` · writing: ${notPosted.slice(0, 12).join(', ')}${notPosted.length > 12 ? ' …' : ''}`}
+              {view.pub.locked ? ' · joining closed' : ''}
+            </p>
+            <main className="board inner">
+              {postedIds.map(card)}
+              {!postedIds.length && <p className="empty">Posts appear here as soon as they are sent.</p>}
+            </main>
+          </div>
+        </div>
+      ) : !view.pub.revealed ? (
         <div className="collect">
-          <aside className="join-panel">
-            <Qr text={studentUrl(view.code)} className="qr" />
-            <div className="join-url">{studentUrl().replace(/^https?:\/\//, '').replace(/\/$/, '')}</div>
-            <div className="join-code-label">Wall code</div>
-            <div className="join-code">{formatCode(view.code)}</div>
-            <ol className="join-steps">
-              <li>Scan the QR code</li>
-              <li>{preset.who === 'group' ? 'Type your group name' : 'Type your pair name (both nicknames)'}</li>
-              <li>{preset.photo ? 'Post one marked screenshot per pair' : `Post one answer per ${who}`}</li>
-            </ol>
-          </aside>
+          {joinAside}
           <section className="pairs-panel">
             <div className="pairs-head">
               <div className="count">
-                <b>{postedIds.length}</b> / {teams.length} {whos} posted
+                <b>{postedIds.length}</b> / {teams.length} posted
               </div>
-              <div className="expected">
-                <span>{Who}s in class</span>
+              <div className="expected" title="How many posts to wait for. Ladpet opens by itself when this many names have all posted.">
+                <span>Expected posts</span>
                 <button className="btn small" onClick={() => host.setExpected((view.pub.expected ?? 0) - 1)} aria-label="fewer">
                   −
                 </button>
-                <span className="exp-n" title="Not set">{view.pub.expected || '?'}</span>
+                <span className="exp-n" title="Not set">
+                  {view.pub.expected || '?'}
+                </span>
                 <button className="btn small" onClick={() => host.setExpected((view.pub.expected ?? 0) + 1)} aria-label="more">
                   +
                 </button>
@@ -377,48 +452,52 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
             <div className="progress">
               <div style={{width: `${teams.length ? (100 * postedIds.length) / teams.length : 0}%`}} />
             </div>
-            <p className="status-line">{statusLine(blocker, view, whos, postedIds.length, teams.length)}</p>
+            <p className="status-line">{statusLine(blocker, view, postedIds.length, teams.length)}</p>
             <div className="tiles">
               {teams.map(([id, t], i) => {
                 const done = !!view.posts[id];
+                const c = preset.charts ? view.assign[id] : undefined;
                 return (
                   <button
                     key={id}
                     className={`tile ${done ? 'done' : ''}`}
                     style={{background: done ? CARD_TINTS[i % CARD_TINTS.length] : undefined}}
                     title="Click to remove this name"
-                    onClick={() => confirm(`Remove "${t.name}"? (Use this for a duplicate or a name that left.)`) && host.remove(id)}
+                    onClick={() => confirm(`Remove "${t.name}"? (Use this for a duplicate or someone who left.)`) && host.remove(id)}
                   >
                     <span className="tile-name">{t.name}</span>
-                    <span className="tile-state">{done ? '✓ posted' : 'writing…'}</span>
+                    <span className="tile-state">
+                      {done ? '✓ posted' : 'writing…'}
+                      {c !== undefined && <span className="tile-chart"> · chart {c + 1}</span>}
+                    </span>
                   </button>
                 );
               })}
-              {!teams.length && <div className="empty">Names appear here as {whos} join.</div>}
+              {!teams.length && <div className="empty">Names appear here as people join.</div>}
             </div>
             {view.pub.locked && <p className="locked-note">Joining is closed.</p>}
-            {teams.length > 0 && <p className="tiles-hint">Click a name to remove a duplicate or a {who} that left.</p>}
+            {teams.length > 0 && <p className="tiles-hint">Click a name to remove a duplicate or someone who left.</p>}
           </section>
         </div>
-      ) : (
-        <main className="board">
-          {postedIds.map((id, i) => {
-            const t = view.teams[id];
-            const p = view.posts[id];
+      ) : preset.charts ? (
+        <main className="chart-board">
+          {preset.charts.map((c, ci) => {
+            const ids = postedIds.filter((id) => view.posts[id].choice === ci);
             return (
-              <article key={id} className="card" style={{background: CARD_TINTS[i % CARD_TINTS.length]}} onClick={() => setSpot(i)}>
-                <h2>{t.name}</h2>
-                {p.photo && <DbImage load={() => host.thumb(id)} alt={t.name} className="thumb" />}
-                <PostBody post={p} preset={preset} />
-              </article>
+              <section key={c.title} className="chart-col">
+                <ChartCard chart={c} label={`Chart ${ci + 1}`} />
+                {ids.map((id) => card(id, postedIds.indexOf(id)))}
+                {!ids.length && <p className="empty small">No posts for this chart.</p>}
+              </section>
             );
           })}
+          {notPosted.length > 0 && <p className="not-posted">Not posted: {notPosted.join(', ')}</p>}
+        </main>
+      ) : (
+        <main className="board">
+          {postedIds.map(card)}
           {!postedIds.length && <p className="empty">Nobody posted.</p>}
-          {teams.length > postedIds.length && (
-            <p className="not-posted">
-              Not posted: {teams.filter(([id]) => !view.posts[id]).map(([, t]) => t.name).join(', ')}
-            </p>
-          )}
+          {notPosted.length > 0 && <p className="not-posted">Not posted: {notPosted.join(', ')}</p>}
         </main>
       )}
 
@@ -461,18 +540,18 @@ function Title({preset, pubTitle}: {preset: Preset; pubTitle: string}) {
   );
 }
 
-function statusLine(blocker: string | null, view: HostView, whos: string, posted: number, joined: number): string {
+function statusLine(blocker: string | null, view: HostView, posted: number, joined: number): string {
   const exp = view.pub.expected ?? 0;
   switch (blocker) {
     case 'nobody':
-      return `Waiting for the first ${whos.slice(0, -1)} to join.`;
+      return 'Waiting for the first name to join.';
     case 'waiting':
       return exp > 0 || view.pub.locked
-        ? `Opens by itself when all ${Math.max(exp, joined)} ${whos} have posted.`
-        : `${joined - posted} still writing. Set the number of ${whos} in class (or close joining) and the wall opens by itself when all have posted.`;
+        ? `Opens by itself when all ${Math.max(exp, joined)} have posted.`
+        : `${joined - posted} still writing. Set "Expected posts" (or close joining) and Ladpet opens by itself when all have posted.`;
     case 'open':
       return exp > joined
-        ? `All ${joined} have posted — waiting for ${exp - joined} more ${whos} to join (or press Reveal now).`
+        ? `All ${joined} have posted — waiting for ${exp - joined} more to join (or press Reveal now).`
         : `All ${joined} have posted. Close joining or press Reveal now.`;
     default:
       return 'Opening…';
@@ -525,7 +604,7 @@ function Spotlight({
         )}
         <div className="spot-text">
           <div className="spot-name">{t.name}</div>
-          <PostBody post={p} preset={preset} big />
+          <PostBody post={p} preset={preset} big chart />
           <div className="spot-nav">
             <button className="btn" onClick={() => onIndex((index - 1 + ids.length) % ids.length)}>
               ← Back
