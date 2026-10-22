@@ -111,7 +111,7 @@ function CodeForm({onCode}: {onCode: (c: string) => void}) {
       <h1 className="app-name">{APP_NAME}</h1>
       <form className="code-form" onSubmit={submit}>
         <label htmlFor="code">
-          <Bi en="Wall code (on the screen)" th="รหัสบอร์ด (บนจอ)" />
+          <Bi en="Ladpet code (on the screen)" th="รหัส Ladpet (บนจอ)" />
         </label>
         <input id="code" inputMode="numeric" autoComplete="off" maxLength={7} value={v} onChange={(e) => setV(e.target.value)} placeholder="123 456" />
         <button className="btn primary big" disabled={busy || v.replace(/\D/g, '').length !== 6}>
