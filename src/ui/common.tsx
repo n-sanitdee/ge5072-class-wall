@@ -2,7 +2,8 @@ import {type ReactNode, useEffect, useState} from 'react';
 import {BAD_P, type Chart, type Preset} from '../lib/presets.ts';
 import type {Post} from '../lib/types.ts';
 
-export const APP_NAME = 'GE5072 Class Wall';
+/** Mew named it, 22 Oct 2026. */
+export const APP_NAME = 'Ladpet';
 
 /** English line with the Thai under it. */
 export function Bi({en, th, className}: {en: ReactNode; th: ReactNode; className?: string}) {

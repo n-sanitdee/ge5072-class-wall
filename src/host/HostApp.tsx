@@ -2,7 +2,7 @@ import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {backend, configured} from '../backend.ts';
 import {buildWallHtml, download, exportFileName} from '../lib/export.ts';
 import {openDatabase, signInHost} from '../lib/fb.ts';
-import {GOOD_P, NINE, PRESETS, type Preset, getPreset, whoWord} from '../lib/presets.ts';
+import {GOOD_P, NINE, PRESETS, type Preset, fullTitle, getPreset, titleParts, whoWord} from '../lib/presets.ts';
 import {SECTIONS, type PresetId} from '../lib/types.ts';
 import {type HostView, WallHost, orderedTeams, revealBlocker} from '../lib/wall-host.ts';
 import {APP_NAME, CARD_TINTS, DbImage, PostBody, Rich, Spinner, formatCode} from '../ui/common.tsx';
@@ -153,7 +153,7 @@ function Setup({
         <Logo />
         <div>
           <h1>{APP_NAME}</h1>
-          <p>Pairs and groups post from their phones. Posts stay hidden — only names show — until everyone has posted.</p>
+          <p>GE5072 class wall · pairs and groups post from their phones. Posts stay hidden — only names show — until everyone has posted.</p>
         </div>
       </header>
 
@@ -204,7 +204,7 @@ function Setup({
                   className={`preset-card theme-${p.theme} ${presetId === p.id ? 'on' : ''}`}
                   onClick={() => setPresetId(p.id)}
                 >
-                  <span className="preset-kind">{p.activity}</span>
+                  <span className="preset-kind">{p.id === 'custom' ? p.activity : `${p.week} · ${p.activity}:`}</span>
                   <span className="preset-title">{p.id === 'custom' ? 'Your own question' : p.title}</span>
                   <span className="preset-meta">
                     {p.id === 'custom' ? 'title + question · text (photo optional)' : `${p.who === 'group' ? 'Project groups' : 'Pairs'} · ${p.photo ? 'photo or text' : 'text only'}`}
@@ -233,7 +233,7 @@ function Setup({
 
       <div className="setup-go">
         <button className="btn primary big" disabled={!ready || busy} onClick={open}>
-          {busy ? 'Opening…' : 'Open the wall'}
+          {busy ? 'Opening…' : 'Open Ladpet'}
         </button>
         {!section && <span className="muted">Pick your section.</span>}
         {section && !preset && <span className="muted">Pick an activity.</span>}
@@ -276,8 +276,8 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
   const Who = who[0].toUpperCase() + who.slice(1);
 
   useEffect(() => {
-    document.title = `${view.pub.title} · ${view.pub.section} · ${APP_NAME}`;
-  }, [view.pub.title, view.pub.section]);
+    document.title = `${fullTitle(preset, view.pub.title)} · ${view.pub.section} · ${APP_NAME}`;
+  }, [preset, view.pub.title, view.pub.section]);
 
   async function save() {
     setSaving(true);
@@ -306,10 +306,10 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
       <header className="wall-bar">
         <div className="wall-title">
           <div className="kicker">
-            {[preset.week, preset.activity].filter(Boolean).join(' · ')}
+            {APP_NAME}
             <span className="chip">{view.pub.section}</span>
           </div>
-          <h1>{view.pub.title}</h1>
+          <Title preset={preset} pubTitle={view.pub.title} />
         </div>
         <div className="wall-actions">
           <span className={`conn ${view.connected ? 'ok' : 'off'}`} title={view.connected ? 'Connected' : 'Offline — reconnecting'}>
@@ -327,7 +327,7 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
           )}
           {revealed && (
             <button className="btn" onClick={save} disabled={saving}>
-              {saving ? 'Saving…' : saved ? 'Saved ✓ (again)' : 'Save wall'}
+              {saving ? 'Saving…' : saved ? 'Saved ✓ (save again)' : 'Save the Ladpet'}
             </button>
           )}
           <button className="btn quiet" onClick={() => document.documentElement.requestFullscreen?.().catch(() => {})} title="Full screen">
@@ -448,6 +448,16 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
         </div>
       )}
     </div>
+  );
+}
+
+function Title({preset, pubTitle}: {preset: Preset; pubTitle: string}) {
+  const {lead, title} = titleParts(preset, pubTitle);
+  return (
+    <h1>
+      {lead && <span className="lead">{lead} </span>}
+      {title}
+    </h1>
   );
 }
 

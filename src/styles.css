@@ -1,4 +1,4 @@
-/* GE5072 Class Wall — one stylesheet for the phones and the projector.
+/* Ladpet (GE5072 class wall) — one stylesheet for the phones and the projector.
    Week 13 = indigo + pink, Week 14 = teal + orange (the same palettes as the decks). */
 :root {
   --page: #f5f6fc;
@@ -916,6 +916,11 @@ html.is-host {
   color: #fff;
   font-size: 2.1rem;
   line-height: 1.1;
+}
+.wall-title h1 .lead,
+.phone-head h1 .lead {
+  font-weight: 600;
+  opacity: 0.82;
 }
 .wall-title .kicker {
   font-size: 0.95rem;

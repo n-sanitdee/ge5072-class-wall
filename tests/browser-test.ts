@@ -39,11 +39,11 @@ for (const [n, p] of [['host', host], ['android', android], ['ios', ios]] as con
 
 async function openWall(section: string, title: string): Promise<string> {
   await host.goto(`${BASE}#host`);
-  await host.waitForSelector('text=Open the wall');
+  await host.waitForSelector('text=Open Ladpet');
   await host.click(`.section-btn:has-text("${section}")`);
   await host.click(`.preset-card:has-text("${title}")`);
   await shot(host, `${title.replace(/\W+/g, '_')}-00-setup`);
-  await host.click('text=Open the wall');
+  await host.click('text=Open Ladpet');
   await host.waitForSelector('.join-code');
   return (await host.textContent('.join-code'))!.replace(/\s/g, '');
 }
@@ -51,11 +51,13 @@ async function openWall(section: string, title: string): Promise<string> {
 // ════════════════════════════════════════ 1. Wk13 · Spot the Nine Mistakes (photo wall)
 const code = await openWall('CA48', 'Spot the Nine Mistakes');
 check('photo wall created', /^\d{6}$/.test(code), code);
+check('projector header: Ladpet + "Week 13 · Think-Pair-Share: Spot the Nine Mistakes"', (await host.textContent('.wall-bar'))!.includes('Week 13 · Think-Pair-Share: Spot the Nine Mistakes') && (await host.textContent('.wall-bar .kicker'))!.includes('Ladpet'));
 await shot(host, '01-host-collect-empty');
 
 // Android: open the wall from the QR link, screenshot the passage, join, post the screenshot
 await android.goto(`${BASE}?w=${code}`);
 await android.waitForSelector('.passage');
+check('phone header shows the week + activity title', (await android.textContent('.phone-head h1'))!.includes('Week 13 · Think-Pair-Share: Spot the Nine Mistakes'));
 check('phone shows the passage before joining', (await android.textContent('.passage'))!.includes('brand.It was Founded in 2021 , and'));
 check('passage keeps all nine mistakes (no final full stop)', (await android.textContent('.passage p'))!.trim().endsWith('picked by hand'));
 await shot(android, '02-android-open', true);
@@ -72,7 +74,7 @@ await android.waitForSelector('.composer');
 await android.setInputFiles('input[type=file]', passagePng);
 await android.waitForSelector('.photo-preview img');
 await shot(android, '03-android-photo-chosen', true);
-await android.click('button:has-text("Post to the wall")');
+await android.click('button:has-text("Post on Ladpet")');
 await android.waitForSelector('.posted');
 await shot(android, '04-android-posted', true);
 check('android: posted (photo)', (await android.textContent('.posted'))!.includes('hidden until everyone has posted'));
@@ -90,10 +92,10 @@ check('iPhone: a duplicate name is refused', (await ios.textContent('.join-form 
 await ios.fill('#team-name', 'Bo & Cy');
 await ios.click('button:has-text("Join")');
 await ios.waitForSelector('.composer');
-await ios.click('button:has-text("Post to the wall")');
+await ios.click('button:has-text("Post on Ladpet")');
 check('iPhone: an empty post is refused', (await ios.textContent('.composer .error'))!.includes('photo'));
 await ios.fill('.composer textarea', '1. Sunny Tea is a Thai tea brand.\n2. brand. It\n3. founded');
-await ios.click('button:has-text("Post to the wall")');
+await ios.click('button:has-text("Post on Ladpet")');
 await ios.waitForSelector('.posted');
 check('iPhone: no sideways scrolling', await noHScroll(ios));
 await shot(ios, '05-ios-posted', true);
@@ -175,17 +177,18 @@ await sleep(300);
 await shot(host, '13-host-revealed-1280');
 
 // Save wall
-const [dl] = await Promise.all([host.waitForEvent('download'), host.click('button:has-text("Save wall")')]);
+const [dl] = await Promise.all([host.waitForEvent('download'), host.click('button:has-text("Save the Ladpet")')]);
 const name = dl.suggestedFilename();
 await dl.saveAs(`tests/out/${name}`);
 const html = readFileSync(`tests/out/${name}`, 'utf8');
-check('saved file name', /^Wk13_SpotNine_CA48_\d{4}-\d\d-\d\d\.html$/.test(name), name);
+check('saved file name has the app, week, activity, title and section', /^Ladpet_Week13_Think-Pair-Share_Spot-the-Nine-Mistakes_CA48_\d{4}-\d\d-\d\d\.html$/.test(name), name);
+check('saved file is titled with the week and activity', html.includes('Week 13 · Think-Pair-Share:'));
 check('saved file embeds the photos and the names', (html.match(/<img src="data:image\/jpeg/g) ?? []).length === 10 && html.includes('Mint &amp; Ploy'));
 check('saved file includes the nine fixes', html.includes('Check: all nine mistakes'));
 
 // Finish & delete
 await host.click('button:has-text("Finish & delete")');
-await host.waitForSelector('text=Open the wall');
+await host.waitForSelector('text=Open Ladpet');
 await android.waitForSelector('text=This wall has ended');
 check('phones show "This wall has ended"', true);
 for (const b of bots) b.stop();
@@ -203,13 +206,13 @@ await shot(android, '20-android-charts', true);
 await android.fill('#team-name', 'Nok & Fah');
 await android.click('button:has-text("Join")');
 await android.waitForSelector('.composer');
-await android.click('button:has-text("Post to the wall")');
+await android.click('button:has-text("Post on Ladpet")');
 check('chart must be chosen first', (await android.textContent('.composer .error'))!.includes('chart'));
 await android.click('.chart-card.pick >> nth=0');
 await android.fill('.composer .field >> nth=0 >> textarea', 'Hotel guests fell sharply from 3,400 in February to 1,900 in April.');
 await android.fill('.composer .field >> nth=1 >> textarea', 'There was a slight rise in guests in May.');
 await shot(android, '21-android-chart-composer', true);
-await android.click('button:has-text("Post to the wall")');
+await android.click('button:has-text("Post on Ladpet")');
 await android.waitForSelector('.posted');
 await ios.goto(`${BASE}?w=${code2}`);
 await ios.fill('#team-name', 'Ice');
@@ -217,7 +220,7 @@ await ios.click('button:has-text("Join")');
 await ios.waitForSelector('.composer');
 await ios.click('.chart-card.pick >> nth=3');
 await ios.fill('.composer .field >> nth=0 >> textarea', 'The price of jasmine rice rose steadily to 45 baht in March.');
-await ios.click('button:has-text("Post to the wall")');
+await ios.click('button:has-text("Post on Ladpet")');
 await ios.waitForSelector('.posted');
 await host.waitForFunction(() => document.querySelectorAll('.tile.done').length === 2);
 await sleep(500);
@@ -230,7 +233,7 @@ await shot(host, '22-host-chart-revealed');
 check('Reveal now opens the wall', (await host.locator('.board .card').count()) === 2);
 check('chart choice shown on the card', (await host.textContent('.board'))!.includes('Hotel guests per month'));
 await host.click('button:has-text("Finish & delete")');
-await host.waitForSelector('text=Open the wall');
+await host.waitForSelector('text=Open Ladpet');
 
 // ════════════════════════════════════════ 3. Wk13 · Map Your Company Profile (branch boxes)
 const code3 = await openWall('BS11', 'Map Your Company Profile');
@@ -241,7 +244,7 @@ await android.waitForSelector('.composer');
 const notes = ['Sunny Tea', 'a Thai tea brand', '2021, Chiang Mai', 'Thai tea, green tea, snacks', 'students and tourists aged 18 to 30', '45 baht', 'open 3 branches by 2027'];
 for (let i = 0; i < 7; i++) await android.fill(`.composer .field >> nth=${i} >> textarea`, notes[i]);
 await shot(android, '30-android-profile-composer', true);
-await android.click('button:has-text("Post to the wall")');
+await android.click('button:has-text("Post on Ladpet")');
 await android.waitForSelector('.posted');
 await host.click('button:has-text("Close joining")');
 await host.waitForSelector('.board .card');
@@ -253,7 +256,7 @@ await sleep(300);
 await shot(host, '32-host-profile-spotlight');
 await host.keyboard.press('Escape');
 await host.click('button:has-text("Finish & delete")');
-await host.waitForSelector('text=Open the wall');
+await host.waitForSelector('text=Open Ladpet');
 
 // ════════════════════════════════════════ 4. Wk14 · What Changed (branch boxes, teal) + reload resume
 const code4 = await openWall('EC30', 'What Changed in Your Company?');
@@ -262,7 +265,7 @@ await ios.fill('#team-name', 'Rice Gang');
 await ios.click('button:has-text("Join")');
 await ios.waitForSelector('.composer');
 await ios.fill('.composer .field >> nth=0 >> textarea', 'rose by 20% in May');
-await ios.click('button:has-text("Post to the wall")');
+await ios.click('button:has-text("Post on Ladpet")');
 await ios.waitForSelector('.posted');
 await ios.reload();
 await ios.waitForSelector('.posted');

@@ -1,6 +1,6 @@
-# GE5072 Class Wall
+# Ladpet — the GE5072 class wall
 
-A live class wall for GE5072/GE072 Business English, in the spirit of Padlet / Poll Everywhere. The teacher opens a
+**Ladpet** (Mew's name for it, 22 Oct 2026; the repo keeps its first name, `ge5072-class-wall`) is a live class wall for GE5072/GE072 Business English, in the spirit of Padlet / Poll Everywhere. The teacher opens a
 wall on the projector; pairs or project groups post from **one phone each**. Posts stay **hidden — only the pair
 names show — until every pair has posted**, then the whole wall opens at once. Students don't install anything or
 log in.
@@ -10,7 +10,7 @@ log in.
 
 **For the slide (Thai + English):** no link is needed on the slide — the QR code is on the wall screen.
 
-> Scan the QR code on the screen → type your pair name (both nicknames) → post one answer per pair. Posts stay
+> Scan the Ladpet QR on the screen → type your pair name (both nicknames) → post one answer per pair on Ladpet. Posts stay
 > hidden until every pair has posted. · สแกน QR บนจอ → ตั้งชื่อคู่ (ชื่อเล่นทั้งสองคน) → ส่งคำตอบคู่ละ 1 โพสต์
 > คำตอบจะซ่อนไว้จนกว่าทุกคู่จะส่ง
 
@@ -20,10 +20,10 @@ log in.
 
 | Week | Activity | Who | Post | On the phone |
 |---|---|---|---|---|
-| 13 | Think-Pair-Share · **Spot the Nine Mistakes** | pairs | marked screenshot and/or typed fixes | the Sunny Tea passage (errors intact) to screenshot |
-| 13 | Brainstorm · **Map Your Company Profile** | project groups | one box per sub-topic (7) | the sentence frame for each branch |
-| 14 | Think-Pair-Share · **Describe a Chart** | pairs | chart choice + best sentence (+ up to 2 more) | the four invented field charts; the section's own field is marked |
-| 14 | Brainstorm · **What Changed in Your Company?** | project groups | one box per branch (6) | what to think about + an example per branch |
+| 13 | **Week 13 · Think-Pair-Share: Spot the Nine Mistakes** | pairs | marked screenshot and/or typed fixes | the Sunny Tea passage (errors intact) to screenshot |
+| 13 | **Week 13 · Brainstorm: Map Your Company Profile** | project groups | one box per sub-topic (7) | the sentence frame for each branch |
+| 14 | **Week 14 · Think-Pair-Share: Describe a Chart** | pairs | chart choice + best sentence (+ up to 2 more) | the four invented field charts; the section's own field is marked |
+| 14 | **Week 14 · Brainstorm: What Changed in Your Company?** | project groups | one box per branch (6) | what to think about + an example per branch |
 | any | **Your own question** | pairs | text (photo optional) | the question you type |
 
 Texts and chart data are copied from the Week 13/14 decks (`Teaching/_slide_toolkit/build_wk13.py`,
@@ -34,7 +34,7 @@ Texts and chart data are copied from the Week 13/14 decks (`Teaching/_slide_tool
 **Before class:** open the teacher link on the projector laptop (bookmark it). Chrome, Edge or Safari; ⛶ = full
 screen.
 
-1. **Pick your section and the activity**, then **Open the wall**. The screen shows the QR code, the web address
+1. **Pick your section and the activity**, then **Open Ladpet**. The screen shows the QR code, the web address
    and a 6-digit wall code.
 2. **Students scan and join.** Each pair types its pair name; each group its group name. Names appear as tiles:
    dashed = still writing, coloured ✓ = posted. **Nobody — not even the projector — sees any post yet.**
@@ -45,8 +45,8 @@ screen.
 4. **Discuss.** The wall is a grid of cards. Click a card for the big view (click a photo to zoom; ← / → or a
    presentation clicker moves between cards; Esc closes). Week 13 Spot the Nine Mistakes: **Show the nine fixes**.
    **QR** shows the code again so students can look at the wall on their phones.
-5. **Save wall** downloads one HTML file with every post and photo inside, e.g.
-   `Wk13_SpotNine_CA48_2026-11-04.html` — KPI teaching-technique evidence
+5. **Save the Ladpet** downloads one HTML file with every post and photo inside, e.g.
+   `Ladpet_Week13_Think-Pair-Share_Spot-the-Nine-Mistakes_CA48_2026-11-04.html` — KPI teaching-technique evidence
    (`Performance_Evaluation_2026/01_Teaching/05_Teaching_Techniques/`).
 6. **Finish & delete** deletes the wall's data; phones show "This wall has ended". Then open the next wall.
 

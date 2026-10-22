@@ -2,7 +2,7 @@ import {type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState} fr
 import {backend, configured} from '../backend.ts';
 import {openDatabase} from '../lib/fb.ts';
 import {ImageError, prepareImage} from '../lib/image.ts';
-import {type Preset, getPreset, whoWord} from '../lib/presets.ts';
+import {type Preset, getPreset, titleParts, whoWord} from '../lib/presets.ts';
 import type {Draft, Post} from '../lib/types.ts';
 import {type JoinError, JoinFailed, WallClient, type WallState, checkName, peekWall} from '../lib/wall-client.ts';
 import {orderedTeams} from '../lib/wall-host.ts';
@@ -164,9 +164,12 @@ function Wall({code, onLeave}: {code: string; onLeave: () => void}) {
     <div className={`phone theme-${preset.theme}`}>
       <header className="phone-head">
         <div className="kicker">
-          {[preset.week, preset.activity].filter(Boolean).join(' · ')} <span className="chip">{pub.section}</span>
+          {APP_NAME} <span className="chip">{pub.section}</span>
         </div>
-        <h1>{pub.title}</h1>
+        <h1>
+          {titleParts(preset, pub.title).lead && <span className="lead">{titleParts(preset, pub.title).lead} </span>}
+          {titleParts(preset, pub.title).title}
+        </h1>
         {joined && <div className="me">✓ {client.name}</div>}
         {!st.connected && <div className="offline">Offline — reconnecting… · กำลังเชื่อมต่อใหม่</div>}
       </header>
@@ -486,7 +489,7 @@ function Composer({client, st, preset, photoAllowed}: {client: WallClient; st: W
         </label>
       )}
       <button className="btn primary big" disabled={!!busy}>
-        {busy === 'send' ? 'Posting…' : mine ? 'Save changes' : 'Post to the wall'}
+        {busy === 'send' ? 'Posting…' : mine ? 'Save changes' : 'Post on Ladpet'}
       </button>
       {mine && (
         <button type="button" className="link center-link" onClick={() => setEditing(false)}>

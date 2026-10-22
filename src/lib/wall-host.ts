@@ -101,7 +101,7 @@ export class WallHost {
     }
     // Eight refusals in a row is not bad luck with codes: the database itself is refusing walls.
     throw new Error(
-      'the database refused (permission denied). Are the Class Wall rules published in the Firebase console? See the README, "One rules document".',
+      'the database refused (permission denied). Are the Ladpet (Class Wall) rules published in the Firebase console? See the README, "One rules document".',
     );
   }
 

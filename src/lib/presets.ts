@@ -24,8 +24,6 @@ export type Preset = {
   week: string;
   activity: string;
   title: string;
-  /** For the saved file name: Wk13_SpotNine_CA48_2026-11-04.html */
-  slug: string;
   who: 'pair' | 'group';
   theme: 'indigo' | 'teal';
   photo: boolean;
@@ -82,7 +80,6 @@ export const PRESETS: Preset[] = [
     week: 'Week 13',
     activity: 'Think-Pair-Share',
     title: 'Spot the Nine Mistakes',
-    slug: 'Wk13_SpotNine',
     who: 'pair',
     theme: 'indigo',
     photo: true,
@@ -106,7 +103,6 @@ export const PRESETS: Preset[] = [
     week: 'Week 13',
     activity: 'Brainstorm',
     title: 'Map Your Company Profile',
-    slug: 'Wk13_ProfileMap',
     who: 'group',
     theme: 'indigo',
     photo: false,
@@ -137,7 +133,6 @@ export const PRESETS: Preset[] = [
     week: 'Week 14',
     activity: 'Think-Pair-Share',
     title: 'Describe a Chart',
-    slug: 'Wk14_DescribeChart',
     who: 'pair',
     theme: 'teal',
     photo: false,
@@ -164,7 +159,6 @@ export const PRESETS: Preset[] = [
     week: 'Week 14',
     activity: 'Brainstorm',
     title: 'What Changed in Your Company?',
-    slug: 'Wk14_WhatChanged',
     who: 'group',
     theme: 'teal',
     photo: false,
@@ -194,7 +188,6 @@ export const PRESETS: Preset[] = [
     week: '',
     activity: 'Class wall',
     title: 'Your question',
-    slug: 'ClassWall',
     who: 'pair',
     theme: 'indigo',
     photo: false,
@@ -207,6 +200,17 @@ export const PRESETS: Preset[] = [
     ],
   },
 ];
+
+/** "Week 13 · Think-Pair-Share:" + "Spot the Nine Mistakes" — the slide titles (Mew, 22 Oct 2026). */
+export function titleParts(p: Preset, pubTitle: string): {lead: string; title: string} {
+  if (p.id === 'custom') return {lead: '', title: pubTitle};
+  return {lead: `${p.week} · ${p.activity}:`, title: p.title};
+}
+
+export function fullTitle(p: Preset, pubTitle: string): string {
+  const {lead, title} = titleParts(p, pubTitle);
+  return lead ? `${lead} ${title}` : title;
+}
 
 export function getPreset(id: string): Preset {
   return PRESETS.find((p) => p.id === id) ?? PRESETS[PRESETS.length - 1];
