@@ -1,4 +1,4 @@
-import {type ReactNode, useEffect, useState} from 'react';
+import {type ReactNode, useEffect, useRef, useState} from 'react';
 import {BAD_P, type Chart, type Preset} from '../lib/presets.ts';
 import {chartSvg} from './chart-svg.ts';
 import type {Post} from '../lib/types.ts';
@@ -73,17 +73,29 @@ export function ChartCard({chart, compact, label}: {chart: Chart; compact?: bool
   );
 }
 
-/** Lazy image from a loader (thumbs and photos come from the database on demand). */
-export function DbImage({load, alt, className, onClick}: {load: () => Promise<string | null>; alt: string; className?: string; onClick?: () => void}) {
+/**
+ * Image from a loader (thumbs and photos come from the database on demand). With `lazy`, it loads only when it
+ * scrolls near the screen, so a phone doesn't pull every thumbnail of the wall the moment it opens.
+ */
+export function DbImage({load, alt, className, onClick, lazy}: {load: () => Promise<string | null>; alt: string; className?: string; onClick?: () => void; lazy?: boolean}) {
   const [src, setSrc] = useState<string | null | undefined>(undefined);
+  const [near, setNear] = useState(!lazy || typeof IntersectionObserver === 'undefined');
+  const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    if (near || !box.current) return;
+    const io = new IntersectionObserver((es) => es.some((e) => e.isIntersecting) && setNear(true), {rootMargin: '600px 0px'});
+    io.observe(box.current);
+    return () => io.disconnect();
+  }, [near]);
+  useEffect(() => {
+    if (!near) return;
     let live = true;
     load().then((s) => live && setSrc(s));
     return () => {
       live = false;
     };
-  }, [load]);
-  if (src === undefined) return <div className={`img-loading ${className ?? ''}`} />;
+  }, [load, near]);
+  if (src === undefined) return <div ref={box} className={`img-loading ${className ?? ''}`} />;
   if (src === null) return <div className={`img-missing ${className ?? ''}`}>Photo unavailable</div>;
   return <img src={src} alt={alt} className={className} onClick={onClick} />;
 }

@@ -110,8 +110,11 @@ for (let i = 0; i < 100 && phoneReveal.length < N; i++) {
 check(`${N}/${N} phones saw the reveal`, phoneReveal.length === N);
 
 // ── after the reveal: every phone loads the wall's thumbnails; the host loads every full photo ──
-await sleep(800);
 const withPhoto = Object.entries(host.view.posts).filter(([, p]) => p.photo).map(([id]) => id);
+// After the reveal each phone first receives the post list, then fetches the thumbnails it shows.
+const tList = Date.now();
+for (let i = 0; i < 600 && !pairs.every((p) => Object.keys(p.state.posts).length === N); i++) await sleep(100);
+check(`${N}/${N} phones received the whole post list`, pairs.every((p) => Object.keys(p.state.posts).length === N), `${((Date.now() - tList) / 1000).toFixed(1)} s after the reveal`);
 const t0 = Date.now();
 const thumbBytes = await Promise.all(
   pairs.map(async (p) => {
@@ -137,8 +140,9 @@ check('posts cannot change after the reveal', await pairs[0].post({text: 'late e
 
 // ── finish ──
 await host.finish();
-await sleep(1500);
-check(`${N}/${N} phones learned that the wall ended`, pairs.every((p) => !p.state.pub || p.state.pub.ended));
+const tEnd = Date.now();
+for (let i = 0; i < 300 && !pairs.every((p) => !p.state.pub || p.state.pub.ended); i++) await sleep(100);
+check(`${N}/${N} phones learned that the wall ended`, pairs.every((p) => !p.state.pub || p.state.pub.ended), `${((Date.now() - tEnd) / 1000).toFixed(1)} s`);
 const estClass = thumbBytes[0].bytes * 56 + fulls.reduce((s, f) => s + (f?.length ?? 0), 0) * 2;
 console.log(`\nDownload estimate for one class of 56 phones: ~${(estClass / 1e6).toFixed(0)} MB (Spark plan: 10 GB/month).`);
 for (const p of pairs) p.stop();

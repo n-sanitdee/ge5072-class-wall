@@ -791,7 +791,7 @@ function Board({client, st, preset}: {client: WallClient; st: WallState; preset:
           {t.name}
           {id === client.tid && <span className="you"> · you</span>}
         </h2>
-        {p.photo && <DbImage load={thumbOf(id, p.at)} alt={t.name} className="thumb" />}
+        {p.photo && <DbImage load={thumbOf(id, p.at)} alt={t.name} className="thumb" lazy />}
         <PostBody post={p} preset={preset} />
       </article>
     );
