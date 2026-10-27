@@ -130,7 +130,8 @@ const [r1, r2] = await Promise.all([
   co1.saveField('text', baseText, 'Sunny Tea sells Thai tea.', true),
   co2.saveField('text', baseText, 'Sunny Tea sells tea. It is based in Chiang Mai.', true),
 ]);
-const merged = (await get(ref(hostApp.db, `${base}/posts/${co1.tid}/text`))).val();
+await sleep(800); // the projector's listener can lag behind the two transactions on the live database
+const merged = (await get(ref(xdb, `${base}/posts/${co1.tid}/text`))).val();
 check('two members typing at once: both edits are kept', merged === 'Sunny Tea sells Thai tea. It is based in Chiang Mai.', JSON.stringify([r1, r2, merged]));
 check('a draft does not count as posted', revealBlocker(host.view) === 'waiting');
 await co1.setDone(true);
