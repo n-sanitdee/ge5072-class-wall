@@ -1,11 +1,12 @@
-import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {type CSSProperties, useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {backend, configured} from '../backend.ts';
 import {buildWallHtml, download, exportFileName} from '../lib/export.ts';
 import {openDatabase, signInHost} from '../lib/fb.ts';
 import {GOOD_P, NINE, PRESETS, type Preset, fullTitle, getPreset, titleParts, whoWord} from '../lib/presets.ts';
-import {SECTIONS, type PresetId} from '../lib/types.ts';
+import {SECTIONS, type PresetId, isPosted} from '../lib/types.ts';
 import {type HostView, WallHost, orderedTeams, revealBlocker} from '../lib/wall-host.ts';
 import {APP_NAME, CARD_TINTS, ChartCard, DbImage, PostBody, Rich, Spinner, formatCode} from '../ui/common.tsx';
+import {FitBoard, Tile, itemFor, membersLine} from '../ui/tiles.tsx';
 import {Qr} from '../ui/Qr.tsx';
 
 const SAVED = 'cw:host';
@@ -153,7 +154,7 @@ function Setup({
         <Logo />
         <div>
           <h1>{APP_NAME}</h1>
-          <p>GE5072 class wall · everyone posts from their phone. Posts stay hidden — only names show — until everyone has posted (the custom wall shows posts straight away).</p>
+          <p>GE5072 class wall · each pair or group types its members' nicknames, then writes ONE post together — every member can edit it from their own phone. Posts stay hidden — only names show — until everyone has posted (the custom wall shows posts straight away).</p>
         </div>
       </header>
 
@@ -230,7 +231,7 @@ function Setup({
             </label>
             <label>
               Question for the phones
-              <textarea value={prompt} maxLength={600} rows={3} onChange={(e) => setPrompt(e.target.value)} placeholder="e.g. Write one slogan for the UTCC Coffee Corner." />
+              <textarea value={prompt} rows={4} onChange={(e) => setPrompt(e.target.value)} placeholder="e.g. Write one slogan for the UTCC Coffee Corner." />
             </label>
             <label className="check">
               <input type="checkbox" checked={photo} onChange={(e) => setPhoto(e.target.checked)} /> Allow a photo with the answer
@@ -248,7 +249,7 @@ function Setup({
         {err && <span className="error">{err}</span>}
       </div>
       <p className="setup-foot">
-        Students scan the Ladpet QR on the next screen and type a name — nicknames only, no student IDs. Everything is
+        Students scan the Ladpet QR on the next screen and type their nicknames — no student IDs. Everything is
         deleted when you press Finish &amp; delete, or 3 hours after the Ladpet was opened.
       </p>
     </div>
@@ -275,7 +276,7 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
   const shown = view.pub.revealed || live;
   // Wk14 chart: cards sit under their chart, so the board and the big view go chart by chart
   const postedIds = teams
-    .filter(([id]) => view.posts[id])
+    .filter(([id]) => isPosted(view.posts[id]))
     .map(([id]) => id)
     .sort((x, y) => (preset.charts ? (view.posts[x].choice ?? 99) - (view.posts[y].choice ?? 99) : 0));
   const blocker = revealBlocker(view);
@@ -320,18 +321,28 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
     onClose();
   }
 
-  const card = (id: string, i: number) => {
+  // Every post is a tile and all of them fit on the screen (Mew, 27 Oct 2026); click one for the big view.
+  const tile = (id: string, style?: CSSProperties) => {
     const t = view.teams[id];
     const p = view.posts[id];
+    const i = postedIds.indexOf(id);
     return (
-      <article key={id} className="card" style={{background: CARD_TINTS[i % CARD_TINTS.length]}} onClick={() => setSpot(postedIds.indexOf(id))}>
-        <h2>{t.name}</h2>
-        {p.photo && <DbImage load={thumbOf(id)} alt={t.name} className="thumb" />}
-        <PostBody post={p} preset={preset} />
-      </article>
+      <Tile
+        key={id}
+        name={t.name}
+        members={t.members}
+        post={p}
+        preset={preset}
+        thumb={thumbOf(id)}
+        tint={CARD_TINTS[i % CARD_TINTS.length]}
+        fit
+        style={style}
+        onClick={() => setSpot(i)}
+      />
     );
   };
-  const notPosted = teams.filter(([id]) => !view.posts[id]).map(([, t]) => t.name);
+  const items = postedIds.map((id) => itemFor(id, view.posts[id]));
+  const notPosted = teams.filter(([id]) => !isPosted(view.posts[id])).map(([, t]) => t.name);
 
   const joinAside = (
     <aside className="join-panel">
@@ -341,22 +352,22 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
       <div className="join-code">{formatCode(view.code)}</div>
       <ol className="join-steps">
         <li>Scan the Ladpet QR</li>
-        <li>Type your name{preset.who === 'pair' ? ' (a pair: both nicknames)' : preset.who === 'group' ? ' (a group: your group name)' : ''}</li>
+        <li>Type everyone's nicknames — or tap your name if your {preset.who === 'pair' ? 'partner' : 'group'} is already in</li>
         <li>
           {preset.id === 'wk13-spot9'
             ? 'Post one marked screenshot per pair'
             : preset.charts
-              ? 'Ladpet gives you a chart — post your best sentence'
+              ? 'Ladpet gives you a chart — write together, then post'
               : live
-                ? 'Post — it appears here straight away'
-                : `Post${preset.who === 'anyone' ? '' : ` one answer per ${whoWord(preset)}`}`}
+                ? 'Write together on your phones, then post — it appears here'
+                : `Write together on your phones, then post${preset.who === 'anyone' ? '' : ` (one post per ${whoWord(preset)})`}`}
         </li>
       </ol>
     </aside>
   );
 
   return (
-    <div className={`host wall-screen theme-${preset.theme}`}>
+    <div className={`host wall-screen theme-${preset.theme} ${shown ? 'fits' : ''}`}>
       <header className="wall-bar">
         <div className="wall-title">
           <div className="kicker">
@@ -416,10 +427,7 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
               {notPosted.length > 0 && ` · writing: ${notPosted.slice(0, 12).join(', ')}${notPosted.length > 12 ? ' …' : ''}`}
               {view.pub.locked ? ' · joining closed' : ''}
             </p>
-            <main className="board inner">
-              {postedIds.map(card)}
-              {!postedIds.length && <p className="empty">Posts appear here as soon as they are sent.</p>}
-            </main>
+            {postedIds.length ? <FitBoard items={items} render={tile} /> : <p className="empty">Posts appear here as soon as they are posted.</p>}
           </div>
         </div>
       ) : !view.pub.revealed ? (
@@ -455,7 +463,8 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
             <p className="status-line">{statusLine(blocker, view, postedIds.length, teams.length)}</p>
             <div className="tiles">
               {teams.map(([id, t], i) => {
-                const done = !!view.posts[id];
+                const done = isPosted(view.posts[id]);
+                const who = membersLine(t.name, t.members);
                 const c = preset.charts ? view.assign[id] : undefined;
                 return (
                   <button
@@ -466,6 +475,7 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
                     onClick={() => confirm(`Remove "${t.name}"? (Use this for a duplicate or someone who left.)`) && host.remove(id)}
                   >
                     <span className="tile-name">{t.name}</span>
+                    {who && <span className="tile-who">{who}</span>}
                     <span className="tile-state">
                       {done ? '✓ posted' : 'writing…'}
                       {c !== undefined && <span className="tile-chart"> · chart {c + 1}</span>}
@@ -485,8 +495,8 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
             const ids = postedIds.filter((id) => view.posts[id].choice === ci);
             return (
               <section key={c.title} className="chart-col">
-                <ChartCard chart={c} label={`Chart ${ci + 1}`} />
-                {ids.map((id) => card(id, postedIds.indexOf(id)))}
+                <ChartCard chart={c} label={`Chart ${ci + 1}`} compact />
+                <div className="chart-tiles">{ids.map((id) => tile(id))}</div>
                 {!ids.length && <p className="empty small">No posts for this chart.</p>}
               </section>
             );
@@ -494,9 +504,8 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
           {notPosted.length > 0 && <p className="not-posted">Not posted: {notPosted.join(', ')}</p>}
         </main>
       ) : (
-        <main className="board">
-          {postedIds.map(card)}
-          {!postedIds.length && <p className="empty">Nobody posted.</p>}
+        <main className="board fit">
+          {postedIds.length ? <FitBoard items={items} render={tile} /> : <p className="empty">Nobody posted.</p>}
           {notPosted.length > 0 && <p className="not-posted">Not posted: {notPosted.join(', ')}</p>}
         </main>
       )}
@@ -604,6 +613,7 @@ function Spotlight({
         )}
         <div className="spot-text">
           <div className="spot-name">{t.name}</div>
+          {membersLine(t.name, t.members) && <div className="spot-members">{membersLine(t.name, t.members)}</div>}
           <PostBody post={p} preset={preset} big chart />
           <div className="spot-nav">
             <button className="btn" onClick={() => onIndex((index - 1 + ids.length) % ids.length)}>

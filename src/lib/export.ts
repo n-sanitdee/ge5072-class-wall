@@ -1,7 +1,8 @@
 // "Save the Ladpet": one self-contained HTML file (photos embedded) — KPI teaching-technique evidence.
 import {GOOD_P, NINE, type Preset, fullTitle, titleParts} from './presets.ts';
 import {chartSvg} from '../ui/chart-svg.ts';
-import type {Post, Pub, Team} from './types.ts';
+import {type Post, type Pub, type Team, isPosted} from './types.ts';
+import {defaultGroupName} from './wall-client.ts';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]!);
 const rich = (s: string) =>
@@ -32,7 +33,7 @@ export function buildWallHtml(opts: {
 }): string {
   const {preset, pub, teams, posts, photos} = opts;
   const date = opts.date ?? new Date();
-  const posted = teams.filter(([id]) => posts[id]);
+  const posted = teams.filter(([id]) => isPosted(posts[id]));
   const when = date.toLocaleString('en-GB', {dateStyle: 'full', timeStyle: 'short'});
   const accent = preset.theme === 'teal' ? '#0f766e' : '#4f46e5';
   const card = ([id, t]: [string, Team]) => {
@@ -48,7 +49,8 @@ export function buildWallHtml(opts: {
     }
     if (preset.fields) parts.push(...preset.fields.items.map((_, i) => (f(i) ? `<p class="${i ? 'more' : 'best'}">${esc(f(i)!)}</p>` : '')));
     if (p.text) parts.push(`<p class="text">${esc(p.text)}</p>`);
-    return `<article><h2>${esc(t.name)}</h2>${parts.join('')}</article>`;
+    const who = t.members?.length && defaultGroupName(t.members) !== t.name ? `<div class="who">${esc(t.members.join(', '))}</div>` : '';
+    return `<article${img ? ' class="photo"' : ''}><h2>${esc(t.name)}</h2>${who}${parts.join('')}</article>`;
   };
   const accentHi = preset.theme === 'teal' ? '#d9480f' : '#db2777';
   const cards = preset.charts
@@ -61,7 +63,7 @@ export function buildWallHtml(opts: {
         })
         .join('\n')
     : posted.map(card).join('\n');
-  const missing = teams.filter(([id]) => !posts[id]).map(([, t]) => esc(t.name));
+  const missing = teams.filter(([id]) => !isPosted(posts[id])).map(([, t]) => esc(t.name));
   const fixes =
     preset.id === 'wk13-spot9'
       ? `<section class="fixes"><h2>Check: all nine mistakes</h2><p class="good">${rich(GOOD_P)}</p><ol>${NINE.map((n) => `<li>${rich(n)}</li>`).join('')}</ol></section>`
@@ -79,7 +81,8 @@ header h1{margin:4px 0 6px;font-size:28px}header h1 .lead{font-weight:600;opacit
 header p{margin:0;opacity:.9}
 main{padding:20px 28px;columns:4 280px;column-gap:16px}
 article{break-inside:avoid;background:#fff;border:1px solid #e3e5f1;border-radius:14px;padding:12px 14px;margin:0 0 16px;box-shadow:none}
-article h2{font-size:17px;margin:0 0 8px;color:var(--accent)}
+article h2{font-size:17px;margin:0 0 2px;color:var(--accent)}
+.who{font-size:13px;color:#64748b;margin-bottom:8px}
 article img{width:100%;border-radius:8px;border:1px solid #e3e5f1;display:block;margin-bottom:8px}
 .tag{font-size:13px;font-weight:700;color:#475569;margin-bottom:6px}
 .best{font-size:17px;font-weight:600;margin:4px 0}.more{margin:4px 0;color:#334155}

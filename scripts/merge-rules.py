@@ -19,10 +19,12 @@ H = f"auth != null && {W}.child('meta/hostUid').val() == auth.uid"
 # Readable by everyone with the code: after the reveal, or always on a live (custom) wall.
 SHOWN = f"({W}.child('pub/revealed').val() == true || {W}.child('pub/live').val() == true)"
 OPEN = f"{W}.child('pub/revealed').val() != true && {W}.child('pub/ended').val() != true"
+# 27 Oct 2026 (Mew): a group's post stays editable by every member until the wall ends, also after the reveal.
+NOT_ENDED = f"{W}.child('pub/ended').val() != true"
 TEAM = f"{W}.child('teams').child($tid).child('name').exists() && !{W}.child('kicked').child($tid).exists()"
 HOST_OR_SHOWN = f"({H}) || {SHOWN}"
-POSTER = f"({H}) || ({TEAM} && {OPEN})"
-NAME_OK = ("newData.isString() && newData.val().length >= 1 && newData.val().length <= 24 && "
+POSTER = f"({H}) || ({TEAM} && {NOT_ENDED})"
+NAME_OK = ("newData.isString() && newData.val().length >= 1 && newData.val().length <= 60 && "
            "!newData.val().contains('.') && !newData.val().contains('$') && !newData.val().contains('#') && "
            "!newData.val().contains('[') && !newData.val().contains(']') && !newData.val().contains('/')")
 IMMUTABLE_BOOL = "newData.isBoolean() && (!data.exists() || newData.val() == data.val())"
@@ -67,7 +69,7 @@ WALLS = {
                 ".write": H,
                 ".validate": "newData.hasChildren(['title', 'preset', 'section', 'photo', 'revealed'])",
                 "title": {".validate": "newData.isString() && newData.val().length <= 120"},
-                "prompt": {".validate": "newData.isString() && newData.val().length <= 600"},
+                "prompt": {".validate": "newData.isString() && newData.val().length <= 5000"},
                 "preset": {".validate": "newData.isString() && newData.val().length <= 40"},
                 "section": {".validate": "newData.isString() && newData.val().length <= 20"},
                 "photo": {".validate": IMMUTABLE_BOOL},
@@ -80,14 +82,20 @@ WALLS = {
                 "roster": {"$i": {".validate": "newData.hasChildren(['n', 'p'])"}},
                 "$other": {".validate": False},
             },
+            # Readable by everyone with the code (27 Oct 2026): members tap their group to join it and co-edit.
             "teams": {
-                ".read": HOST_OR_SHOWN,
+                ".read": True,
                 "$tid": {
                     ".read": True,
                     ".write": f"({H}) || (!data.exists() && newData.exists() && !{W}.child('kicked').child($tid).exists() && {W}.child('pub/locked').val() != true && {OPEN})",
                     ".validate": "$tid.matches(/^[A-Za-z0-9]{20}$/) && newData.hasChildren(['name', 'joinedAt'])",
                     "name": {".validate": NAME_OK + " && (data.exists() ? newData.val() == data.val() : newData.parent().parent().parent().child('names').child(newData.val().toLowerCase().replace(' ', '')).val() == $tid)"},
                     "joinedAt": {".validate": "data.exists() ? newData.val() == data.val() : newData.val() == now"},
+                    # the participants' nicknames; any member can add one later
+                    "members": {
+                        ".write": f"{TEAM} && {NOT_ENDED}",
+                        "$i": {".validate": "$i.matches(/^([0-9]|1[01])$/) && newData.isString() && newData.val().length >= 1 && newData.val().length <= 30"},
+                    },
                     "$other": {".validate": False},
                 },
             },
@@ -117,11 +125,14 @@ WALLS = {
                 "$tid": {
                     ".read": True,
                     ".write": POSTER,
-                    ".validate": "newData.hasChild('at') && (newData.hasChild('text') || newData.hasChild('fields') || newData.hasChild('photo'))",
+                    # co-edited part by part (merge.ts), so a post may be empty for a moment; `done` = "Post on Ladpet"
+                    ".validate": "newData.hasChild('at')",
                     "at": {".validate": "newData.val() == now"},
-                    "text": {".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 1000"},
+                    # no length limit on answers (Mew, 27 Oct 2026)
+                    "text": {".validate": "newData.isString() && newData.val().length >= 1"},
+                    "done": {".validate": "newData.val() == true"},
                     # f0-f9 = finished sentences (shown), b0-b9 = the guided inputs as JSON (to refill the form)
-                    "fields": {"$f": {".validate": "$f.matches(/^[fb][0-9]$/) && newData.isString() && newData.val().length >= 1 && newData.val().length <= 400"}},
+                    "fields": {"$f": {".validate": "$f.matches(/^[fb][0-9]$/) && newData.isString() && newData.val().length >= 1"}},
                     "choice": {".validate": f"newData.isNumber() && newData.val() >= 0 && newData.val() <= 9 && newData.val() % 1 == 0 && (!{W}.child('assign').child($tid).exists() || newData.val() == {W}.child('assign').child($tid).val())"},
                     "photo": {".validate": f"newData.val() == true && {W}.child('pub/photo').val() == true && newData.parent().parent().parent().child('photos').child($tid).exists() && newData.parent().parent().parent().child('thumbs').child($tid).exists()"},
                     "$other": {".validate": False},

@@ -66,7 +66,8 @@ check('duplicate pair name refused ("mint & ploy" vs "Mint & Ploy")', dupErr ===
 // A separate connection with no team: what a curious classmate could try.
 const xdb = openDatabase(backend, 'attacker').db;
 const [a, b] = phones;
-check('stranger cannot list the teams before the reveal', await denied(get(ref(xdb, `${base}/teams`))));
+// 27 Oct 2026: the group list (names + members) is open to everyone with the code, so members can tap their group
+check('anyone with the code can list the groups (to tap their own)', await allowed(get(ref(xdb, `${base}/teams`))));
 check('stranger cannot list the posts before the reveal', await denied(get(ref(xdb, `${base}/posts`))));
 check('stranger cannot list thumbnails before the reveal', await denied(get(ref(xdb, `${base}/thumbs`))));
 check('stranger cannot list photos before the reveal', await denied(get(ref(xdb, `${base}/photos`))));
@@ -93,15 +94,16 @@ check('host does not auto-reveal while pair C is still writing', revealBlocker(h
 check('pair A can read its own post', await allowed(get(ref(apps[0].db, `${base}/posts/${a.tid}`))));
 check('pair B can read its own thumbnail', await allowed(get(ref(apps[1].db, `${base}/thumbs/${b.tid}`))));
 check('pair A cannot list everyone\'s posts', await denied(get(ref(apps[0].db, `${base}/posts`))));
-check('pair A cannot list the teams', await denied(get(ref(apps[0].db, `${base}/teams`))));
-// A pair's id is a 20-character random secret kept on its phone (as in Hakoot): nobody can list the ids before
-// the reveal (teams/names/kicked are closed, see above), and after the reveal no post can change.
+
+// A group's id is a 20-character random id; since 27 Oct 2026 the group list shows it so every member can join and
+// co-edit the group's post. Posts still cannot be listed before the reveal.
 check('a made-up team id cannot post', await denied(set(ref(apps[0].db, `${base}/posts/${newTeamId()}`), {at: serverTimestamp(), text: 'x'})));
 check('pair A cannot rename itself', await denied(set(ref(apps[0].db, `${base}/teams/${a.tid}/name`), 'Zed')));
 check('a post needs a server timestamp', await denied(set(ref(apps[0].db, `${base}/posts/${a.tid}`), {at: 1, text: 'x'})));
-check('a post needs content', await denied(set(ref(apps[0].db, `${base}/posts/${a.tid}`), {at: serverTimestamp()})));
+check('a post may be empty while the group writes it', await allowed(set(ref(apps[0].db, `${base}/posts/${a.tid}`), {at: serverTimestamp()})));
+check('done can only be true', await denied(update(ref(apps[0].db, `${base}/posts/${a.tid}`), {done: false})));
 check('no unknown fields in a post', await denied(set(ref(apps[0].db, `${base}/posts/${a.tid}`), {at: serverTimestamp(), text: 'x', score: 10})));
-check('text is capped at 1000 characters', await denied(set(ref(apps[0].db, `${base}/posts/${a.tid}`), {at: serverTimestamp(), text: 'x'.repeat(1001)})));
+check('no length limit: a 20,000-character answer is accepted', await allowed(set(ref(apps[0].db, `${base}/posts/${a.tid}`), {at: serverTimestamp(), text: 'x'.repeat(20000)})));
 check('photo flag needs the photo itself', await denied(update(ref(apps[0].db, base), {[`posts/${a.tid}`]: {at: serverTimestamp(), photo: true}})));
 check('a photo must be a JPEG data URL', await denied(set(ref(apps[0].db, `${base}/photos/${a.tid}`), 'data:text/html;base64,AAAA')));
 check('a photo is capped at 1.5 MB', await denied(set(ref(apps[0].db, `${base}/photos/${a.tid}`), 'data:image/jpeg;base64,' + 'A'.repeat(1_500_001))));
@@ -110,6 +112,30 @@ check('pair B can drop its photo (text-only edit)', await allowed(b.post({text: 
 await sleep(200);
 check('pair B\'s photo is gone after the edit', !(await get(ref(hostApp.db, `${base}/photos/${b.tid}`))).exists());
 check('pair B posts its photo again', await allowed(b.post({text: 'photo again', image: {full: JPEG, thumb: JPEG}})));
+
+// Co-editing (27 Oct 2026): a group made with its members; a second phone taps its name and edits the same post
+const coApp = openDatabase(backend, 'co1');
+const co1 = new WallClient(coApp.db, code);
+await co1.join('Sunny Tea', ['Mint', 'Ploy']);
+check('a group is made with its members', (await get(ref(xdb, `${base}/teams/${co1.tid}/members`))).val()?.join() === 'Mint,Ploy');
+const co2 = new WallClient(openDatabase(backend, 'co2').db, code);
+check('a member taps the group and adds their nickname', await allowed(co2.joinGroup(co1.tid!, 'Bo')));
+check('both phones now write to the same post', co2.tid === co1.tid);
+check('the members list now has 3 names', (await get(ref(xdb, `${base}/teams/${co1.tid}/members`))).val()?.length === 3);
+check('members must be short nicknames', await denied(set(ref(coApp.db, `${base}/teams/${co1.tid}/members/3`), 'x'.repeat(31))));
+check('a made-up id cannot change members', await denied(set(ref(xdb, `${base}/teams/${newTeamId()}/members/0`), 'Zed')));
+const baseText = 'Sunny Tea sells tea.';
+check('first member saves the text', (await co1.saveField('text', '', baseText, true)) === baseText);
+const [r1, r2] = await Promise.all([
+  co1.saveField('text', baseText, 'Sunny Tea sells Thai tea.', true),
+  co2.saveField('text', baseText, 'Sunny Tea sells tea. It is based in Chiang Mai.', true),
+]);
+const merged = (await get(ref(hostApp.db, `${base}/posts/${co1.tid}/text`))).val();
+check('two members typing at once: both edits are kept', merged === 'Sunny Tea sells Thai tea. It is based in Chiang Mai.', JSON.stringify([r1, r2, merged]));
+check('a draft does not count as posted', revealBlocker(host.view) === 'waiting');
+await co1.setDone(true);
+await host.remove(co1.tid!);
+await sleep(300);
 
 // Remove a ghost
 const ghostApp = openDatabase(backend, 'ghost');
@@ -156,8 +182,8 @@ check('after the reveal a stranger can list the teams', await allowed(get(ref(xd
 check('after the reveal thumbnails are readable', await allowed(get(ref(xdb, `${base}/thumbs`))));
 check('after the reveal photos are readable', await allowed(get(ref(xdb, `${base}/photos/${b.tid}`))));
 check('the name index stays host-only after the reveal', await denied(get(ref(xdb, `${base}/names`))));
-check('no post can change after the reveal', await denied(a.post({text: 'changed my mind'})));
-check('no photo can change after the reveal', await denied(set(ref(apps[1].db, `${base}/photos/${b.tid}`), JPEG)));
+check('a group can still edit its post after the reveal', await allowed(a.post({text: 'changed my mind'})));
+check('…and its photo', await allowed(set(ref(apps[1].db, `${base}/photos/${b.tid}`), JPEG)));
 check('the host cannot un-reveal', await denied(set(ref(hostApp.db, `${base}/pub/revealed`), false)));
 check('photo setting cannot change', await denied(set(ref(hostApp.db, `${base}/pub/photo`), false)));
 let revErr = '';
@@ -179,7 +205,7 @@ check('text wall: branch notes are accepted', await allowed(tp.post({fields: {f0
 check('text wall: photos are refused', await denied(tp.post({fields: {f0: 'x'}, image: {full: JPEG, thumb: JPEG}})));
 check('text wall: field keys are f0–f9 / b0–b9 only', await denied(set(ref(tp.db, `walls/${textWall.view.code}/posts/${tp.tid}`), {at: serverTimestamp(), fields: {sales: 'x'}})));
 check('text wall: the builder inputs (b0) are stored with the sentence', await allowed(tp.post({fields: {f0: 'Sales rose sharply by 20% in May.', b0: JSON.stringify({s: 0, v: 0, a: 0, p: 'by', x: '20%', w: 4})}})));
-check('text wall: a field is capped at 400 characters', await denied(set(ref(tp.db, `walls/${textWall.view.code}/posts/${tp.tid}`), {at: serverTimestamp(), fields: {f0: 'x'.repeat(401)}})));
+check('text wall: no length limit on a field', await allowed(set(ref(tp.db, `walls/${textWall.view.code}/posts/${tp.tid}`), {at: serverTimestamp(), fields: {f0: 'x'.repeat(5000)}})));
 await textWall.finish();
 check('text wall deleted by the host', !(await get(ref(hostApp.db, `walls/${textWall.view.code}/meta`))).exists());
 
@@ -222,6 +248,8 @@ await sleep(300);
 check('live wall: host sees the edit', liveWall.view.posts[solo.tid!]?.text === 'Coffee that wakes up your best ideas.');
 check('live wall: the host never auto-reveals it', revealBlocker(liveWall.view) === null && !liveWall.view.pub.revealed);
 check('live flag cannot be switched off', await denied(set(ref(hostApp.db, `${lw}/pub/live`), false)));
+await update(ref(hostApp.db, `${lw}/pub`), {ended: true});
+check('once the wall has ended nothing can change', await denied(solo.post({text: 'too late'})));
 check('a hidden wall cannot be switched to live', await denied(set(ref(hostApp.db, `${base}/pub/live`), true)));
 await liveWall.finish();
 solo.stop();

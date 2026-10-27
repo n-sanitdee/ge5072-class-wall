@@ -136,7 +136,7 @@ check(
   fulls.every(Boolean),
   `${((Date.now() - t1) / 1000).toFixed(1)} s · ${(fulls.reduce((s, f) => s + (f?.length ?? 0), 0) / 1e6).toFixed(1)} MB`,
 );
-check('posts cannot change after the reveal', await pairs[0].post({text: 'late edit'}).then(() => false, () => true));
+check('groups can still edit after the reveal', await pairs[0].post({text: 'late edit'}).then(() => true, () => false));
 
 // ── finish ──
 await host.finish();

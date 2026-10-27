@@ -1,8 +1,9 @@
 // Phone side of a wall. The student screen and the load test both use it.
-import {type Database, type Unsubscribe, get, onValue, ref, serverTimestamp, update} from 'firebase/database';
+import {type Database, type Unsubscribe, get, onValue, ref, runTransaction, serverTimestamp, update} from 'firebase/database';
+import {merge3} from './merge.ts';
 import {type Draft, LIMITS, type Post, type Pub, type Team} from './types.ts';
 
-export type JoinError = 'not-found' | 'locked' | 'revealed' | 'ended' | 'taken' | 'removed' | 'network';
+export type JoinError = 'not-found' | 'locked' | 'revealed' | 'ended' | 'taken' | 'removed' | 'gone' | 'network';
 
 export class JoinFailed extends Error {
   code: JoinError;
@@ -23,6 +24,21 @@ export function checkName(raw: string): {name: string; error?: 'empty' | 'long' 
   // UTCC student IDs are 13 digits; refuse anything that looks like one.
   if (/\d{5,}/.test(name.replace(/[\s_,&+'-]/g, ''))) return {name, error: 'digits'};
   return {name};
+}
+
+/** Tidy one participant's nickname (same checks as a name, shorter). */
+export function checkMember(raw: string): {name: string; error?: 'empty' | 'long' | 'chars' | 'digits'} {
+  const c = checkName(raw);
+  if (!c.error && c.name.length > LIMITS.member) return {name: c.name, error: 'long'};
+  return c;
+}
+
+/** The group's name when nobody typed one: the members' nicknames ("Mint, Ploy & Bo"). */
+export function defaultGroupName(members: string[]): string {
+  const m = members.filter(Boolean);
+  const full = m.length > 1 ? `${m.slice(0, -1).join(', ')} & ${m.at(-1)}` : (m[0] ?? '');
+  if (full.length <= LIMITS.name) return full;
+  return m.join(' ').slice(0, LIMITS.name).trim();
 }
 
 /** Database key that keeps names unique within a wall (must match database.rules.json). */
@@ -50,13 +66,15 @@ export async function peekWall(db: Database, code: string): Promise<Pub | null> 
 
 export type WallState = {
   pub: Pub | null;
+  /** The groups (names + members; readable by everyone with the code, so members can tap their group). */
+  groups: Record<string, Team>;
   /** This phone's team still exists (null = not known yet; false once it is gone). */
   inWall: boolean | null;
   removed: boolean;
   mine?: Post | null;
   /** Wk14 chart: the chart Ladpet gave this name (undefined = not yet). */
   chart?: number;
-  /** After the reveal: everyone's posts. */
+  /** = groups (kept for the board code). */
   teams: Record<string, Team>;
   posts: Record<string, Post>;
   connected: boolean;
@@ -71,7 +89,7 @@ export class WallClient {
   code: string;
   tid: string | null;
   name: string;
-  state: WallState = {pub: null, inWall: null, removed: false, teams: {}, posts: {}, connected: false};
+  state: WallState = {pub: null, groups: {}, inWall: null, removed: false, teams: {}, posts: {}, connected: false};
   private subs = new Set<(s: WallState) => void>();
   private unsubs: Unsubscribe[] = [];
   private mineUnsubs: Unsubscribe[] = [];
@@ -100,8 +118,8 @@ export class WallClient {
     return `walls/${this.code}`;
   }
 
-  /** Join as a new pair/group. */
-  async join(name: string): Promise<void> {
+  /** Start a new pair/group: its participants first, then (optionally) a group name. */
+  async join(name: string, members?: string[]): Promise<void> {
     let pub: Pub | null;
     try {
       pub = await peekWall(this.db, this.code);
@@ -114,7 +132,7 @@ export class WallClient {
     const tid = newTeamId();
     try {
       await update(ref(this.db), {
-        [`${this.base}/teams/${tid}`]: {name, joinedAt: serverTimestamp()},
+        [`${this.base}/teams/${tid}`]: members?.length ? {name, joinedAt: serverTimestamp(), members} : {name, joinedAt: serverTimestamp()},
         [`${this.base}/names/${nameKey(name)}`]: tid,
       });
     } catch (e) {
@@ -130,6 +148,32 @@ export class WallClient {
     this.name = name;
     this.patch({inWall: true, removed: false, mine: null});
     if (this.watching) this.watchMine();
+  }
+
+  /** A member of a group that is already on the wall taps their group (and their name). */
+  async joinGroup(tid: string, addMember?: string): Promise<void> {
+    let pub: Pub | null;
+    let team: Team | null;
+    try {
+      pub = await peekWall(this.db, this.code);
+      team = (await get(ref(this.db, `${this.base}/teams/${tid}`))).val() as Team | null;
+    } catch {
+      throw new JoinFailed('network');
+    }
+    if (!pub || pub.ended) throw new JoinFailed(pub ? 'ended' : 'not-found');
+    if (!team) throw new JoinFailed('gone');
+    this.tid = tid;
+    this.name = team.name;
+    if (addMember && !(team.members ?? []).some((m) => m.toLowerCase() === addMember.toLowerCase())) {
+      await this.setMembers([...(team.members ?? []), addMember]).catch(() => {});
+    }
+    this.patch({inWall: true, removed: false, mine: null});
+    if (this.watching) this.watchMine();
+  }
+
+  async setMembers(members: string[]) {
+    if (!this.tid) throw new Error('Join first.');
+    await update(ref(this.db, `${this.base}/teams/${this.tid}`), {members: members.length ? members.slice(0, LIMITS.members) : null});
   }
 
   /** After a reload: is our team still there? */
@@ -154,6 +198,7 @@ export class WallClient {
       this.patch({pub});
       if (pub?.revealed || pub?.live) this.watchWall();
     });
+    on<Record<string, Team>>(`${this.base}/teams`, (teams) => this.patch({groups: teams ?? {}, teams: teams ?? {}}));
     if (this.tid) this.watchMine();
   }
 
@@ -172,7 +217,6 @@ export class WallClient {
     if (this.wallUnsubs.length) return;
     const on = <T>(path: string, fn: (v: T | null) => void) =>
       this.wallUnsubs.push(onValue(ref(this.db, path), (s) => fn(s.val() as T | null), () => {}));
-    on<Record<string, Team>>(`${this.base}/teams`, (teams) => this.patch({teams: teams ?? {}}));
     on<Record<string, Post>>(`${this.base}/posts`, (posts) => this.patch({posts: posts ?? {}}));
   }
 
@@ -187,53 +231,111 @@ export class WallClient {
     for (const fn of this.subs) fn(this.state);
   }
 
-  /** Post or replace this pair's answer. */
+  private get mineBase() {
+    if (!this.tid) throw new Error('Join first.');
+    return `${this.base}/posts/${this.tid}`;
+  }
+
+  /** The group's post must exist (with its server time) before single parts of it are saved. */
+  private async ensurePost() {
+    if (this.state.mine) return;
+    const s = await get(ref(this.db, `${this.mineBase}/at`));
+    if (!s.exists()) await update(ref(this.db, this.mineBase), {at: serverTimestamp()});
+  }
+
+  /**
+   * Save one part of the group's post ("text", or a field such as "f0"/"b0"). `base` is what this phone last saw
+   * saved, `local` what it shows now; with `merge`, edits other members made meanwhile are kept (see merge.ts).
+   * Returns what is saved now.
+   */
+  async saveField(key: string, base: string, local: string, merge: boolean): Promise<string> {
+    await this.ensurePost();
+    const path = key === 'text' ? `${this.mineBase}/text` : `${this.mineBase}/fields/${key}`;
+    const res = await runTransaction(
+      ref(this.db, path),
+      (cur: string | null) => {
+        const next = merge ? merge3(base, local, cur ?? '') : local;
+        return next.trim() ? next : null;
+      },
+      {applyLocally: false},
+    );
+    return (res.snapshot.val() as string | null) ?? '';
+  }
+
+  /** Add, replace (image) or remove (null) the group's photo. */
+  async setPhoto(image: {full: string; thumb: string} | null) {
+    const tid = this.tid;
+    if (!tid) throw new Error('Join first.');
+    await this.ensurePost();
+    await update(ref(this.db, this.base), {
+      [`thumbs/${tid}`]: image?.thumb ?? null,
+      [`photos/${tid}`]: image?.full ?? null,
+      [`posts/${tid}/photo`]: image ? true : null,
+      [`posts/${tid}/at`]: serverTimestamp(),
+    });
+  }
+
+  /** "Post on Ladpet" (true), or the Wk14 chart this group was given. */
+  async setDone(done: boolean) {
+    await this.ensurePost();
+    await update(ref(this.db, this.mineBase), {done: done || null});
+  }
+
+  async setChoice(choice: number) {
+    await this.ensurePost();
+    await update(ref(this.db, this.mineBase), {choice});
+  }
+
+  /** Write the whole post in one go and mark it posted (tests and the load test). */
   async post(d: Draft): Promise<void> {
     if (!this.tid) throw new Error('Join first.');
-    const post: Record<string, unknown> = {at: serverTimestamp()};
+    const post: Record<string, unknown> = {at: serverTimestamp(), done: true};
     const text = d.text?.trim();
-    if (text) post.text = text.slice(0, LIMITS.text);
+    if (text) post.text = text;
     const fields: Record<string, string> = {};
     for (const [k, v] of Object.entries(d.fields ?? {})) {
       const t = v.trim();
-      if (t) fields[k] = t.slice(0, LIMITS.field);
+      if (t) fields[k] = t;
     }
     if (Object.keys(fields).length) post.fields = fields;
     if (typeof d.choice === 'number') post.choice = d.choice;
     const paths: Record<string, unknown> = {};
-    let thumb: string | null | undefined;
     if (d.image && d.image !== 'keep') {
-      paths[`thumbs/${this.tid}`] = thumb = d.image.thumb;
+      paths[`thumbs/${this.tid}`] = d.image.thumb;
       paths[`photos/${this.tid}`] = d.image.full;
       post.photo = true;
     } else if (d.image === 'keep') {
       post.photo = true;
     } else if (this.state.mine?.photo) {
-      paths[`thumbs/${this.tid}`] = thumb = null;
+      paths[`thumbs/${this.tid}`] = null;
       paths[`photos/${this.tid}`] = null;
     }
     paths[`posts/${this.tid}`] = post;
     await update(ref(this.db, this.base), paths);
-    if (thumb !== undefined) {
-      this.thumbs.set(this.tid, Promise.resolve(thumb));
-      this.photos.set(this.tid, Promise.resolve(thumb === null ? null : (d.image as {full: string}).full));
-    }
+  }
+
+  /** Cache key: a group's photo can be changed by any member, so the post time is part of it. */
+  private photoKey(tid: string): string {
+    const at = (tid === this.tid ? this.state.mine?.at : this.state.posts[tid]?.at) ?? 0;
+    return `${tid}@${at}`;
   }
 
   thumb(tid: string): Promise<string | null> {
-    let p = this.thumbs.get(tid);
+    const key = this.photoKey(tid);
+    let p = this.thumbs.get(key);
     if (!p) {
       p = get(ref(this.db, `${this.base}/thumbs/${tid}`)).then((s) => s.val() as string | null, () => null);
-      this.thumbs.set(tid, p);
+      this.thumbs.set(key, p);
     }
     return p;
   }
 
   photo(tid: string): Promise<string | null> {
-    let p = this.photos.get(tid);
+    const key = this.photoKey(tid);
+    let p = this.photos.get(key);
     if (!p) {
       p = get(ref(this.db, `${this.base}/photos/${tid}`)).then((s) => s.val() as string | null, () => null);
-      this.photos.set(tid, p);
+      this.photos.set(key, p);
     }
     return p;
   }

@@ -13,7 +13,7 @@ import {
   update,
 } from 'firebase/database';
 import {getPreset} from './presets.ts';
-import {type Post, type PresetId, type Pub, type RosterRow, STALE_MS, type Team} from './types.ts';
+import {type Post, type PresetId, type Pub, type RosterRow, STALE_MS, type Team, isPosted} from './types.ts';
 
 export type HostView = {
   code: string;
@@ -43,7 +43,7 @@ export function orderedTeams(teams: Record<string, Team>): [string, Team][] {
 /** Why the wall has not opened by itself yet (null = it should open now). */
 export function revealBlocker(v: Pick<HostView, 'pub' | 'teams' | 'posts'>): string | null {
   const ids = Object.keys(v.teams);
-  const posted = ids.filter((id) => v.posts[id]).length;
+  const posted = ids.filter((id) => isPosted(v.posts[id])).length;
   if (v.pub.revealed || v.pub.live) return null;
   if (!ids.length) return 'nobody';
   if (posted < ids.length) return 'waiting';
@@ -86,7 +86,7 @@ export class WallHost {
       locked: false,
       expected: 0,
     };
-    if (preset.id === 'custom' && w.prompt) pub.prompt = w.prompt.slice(0, 600);
+    if (preset.id === 'custom' && w.prompt) pub.prompt = w.prompt.slice(0, 5000);
     for (let attempt = 0; attempt < 8; attempt++) {
       const code = randomCode();
       try {
@@ -194,7 +194,7 @@ export class WallHost {
   }
 
   roster(): RosterRow[] {
-    return orderedTeams(this.view.teams).map(([id, t]) => ({n: t.name, p: !!this.view.posts[id]}));
+    return orderedTeams(this.view.teams).map(([id, t]) => ({n: t.name, p: isPosted(this.view.posts[id])}));
   }
 
   /** Phones show "still waiting for …" from pub/roster; keep it in step (batched). */

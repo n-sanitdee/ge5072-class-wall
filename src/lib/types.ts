@@ -31,7 +31,8 @@ export type Pub = {
 
 export type RosterRow = {n: string; p: boolean};
 
-export type Team = {name: string; joinedAt: number};
+/** A pair / group. `members` = the nicknames typed when it was made (Mew, 27 Oct 2026: participants first). */
+export type Team = {name: string; joinedAt: number; members?: string[]};
 
 export type Post = {
   at: number;
@@ -42,7 +43,14 @@ export type Post = {
   choice?: number;
   /** A photo is stored under thumbs/<tid> and photos/<tid>. */
   photo?: true;
+  /** The group pressed "Post on Ladpet". Every member can keep editing afterwards (changes save as they type). */
+  done?: true;
 };
+
+/** The group pressed "Post on Ladpet" (a post without `done` is still being written). */
+export function isPosted(p: Post | null | undefined): p is Post {
+  return !!p?.done;
+}
 
 /** What a phone writes; `full`/`thumb` are JPEG data URLs. */
 export type Draft = {
@@ -54,11 +62,11 @@ export type Draft = {
 
 export const STALE_MS = 3 * 60 * 60 * 1000;
 
-/** Limits shared by the phone, the host and database.rules.json. */
+/** Limits shared by the phone, the host and database.rules.json. Answers have no length limit (Mew, 27 Oct 2026). */
 export const LIMITS = {
-  name: 24,
-  text: 1000,
-  field: 400,
+  name: 60,
+  member: 30,
+  members: 12,
   thumbChars: 200_000,
   photoChars: 1_500_000,
 };

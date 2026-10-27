@@ -1,17 +1,21 @@
 # Ladpet — the GE5072 class wall
 
 **Ladpet** (Mew's name for it, 22 Oct 2026; the repo keeps its first name, `ge5072-class-wall`) is a live class wall for GE5072/GE072 Business English, in the spirit of Padlet / Poll Everywhere. The teacher opens a
-wall on the projector; everyone types a **name** (one person, or a pair / group on one phone) and posts. Posts stay
-**hidden — only the names show — until everyone has posted**, then the whole wall opens at once. The custom wall is
-the exception: its posts show straight away. Students don't install anything or log in.
+wall on the projector. **Participants first** (Mew, 27 Oct 2026): the first phone of a pair / group types everyone's
+nicknames; the others tap their own name under the group. Every member then writes the **same post from their own
+phone** (changes save as they type and merge, Google-Docs style), presses **Post on Ladpet**, and can keep editing
+afterwards. Answers have **no length limit**. On the projector every post is a **tile and all tiles fit on one screen**
+(text shrinks to fit; photos get the biggest tiles). Posts stay **hidden — only the names show — until everyone has
+posted** on the Think-Pair-Share / Brainstorm activities; the custom wall shows each post as soon as it is posted.
+Students don't install anything or log in.
 
 - Students: **https://n-sanitdee.github.io/ge5072-class-wall/** (they scan the QR code on the wall screen)
 - Teacher (projector): **https://n-sanitdee.github.io/ge5072-class-wall/#host**
 
 **For the slide (Thai + English):** no link is needed on the slide — the QR code is on the wall screen.
 
-> Scan the Ladpet QR on the screen → type your name (a pair: both nicknames) → post on Ladpet. Posts stay hidden until
-> everyone has posted. · สแกน QR ของ Ladpet บนจอ → ใส่ชื่อ (ทำเป็นคู่ ใส่ชื่อเล่นทั้งสองคน) → โพสต์ คำตอบจะซ่อนไว้จนกว่าทุกคนจะส่ง
+> Scan the Ladpet QR → type everyone's nicknames (or tap your name if your group is already in) → write together →
+> Post on Ladpet. · สแกน QR ของ Ladpet → ใส่ชื่อเล่นทุกคนในกลุ่ม (หรือแตะชื่อตัวเองถ้ากลุ่มมีแล้ว) → เขียนด้วยกัน → โพสต์
 
 ---
 
@@ -35,15 +39,19 @@ screen.
 
 1. **Pick your section and the activity**, then **Open Ladpet**. The screen shows the QR code, the web address
    and a 6-digit wall code.
-2. **Students scan and join** with a name (a pair: both nicknames; a group: the group name). Names appear as tiles:
-   dashed = still writing, coloured ✓ = posted (Describe a Chart also shows which chart each name got). **Nobody —
+2. **Students scan and join.** The first phone of each pair / group types the members' nicknames (group name
+   optional — e.g. the company); the others choose **My group is already here** and tap their name (or **+ me**).
+   Groups appear as tiles: dashed = still writing (a draft does not count), coloured ✓ = posted (Describe a Chart also shows which chart each name got). **Nobody —
    not even the projector — sees any post yet.** Click a tile to remove a duplicate or someone who left.
 3. **Let the wall open by itself.** Either set **Expected posts** (− / +) or press **Close joining** once everyone is
    in: the wall opens the moment every name on the screen has posted. **Reveal now** opens it at any time (for
-   stragglers). Posts can change until the wall opens; after that nothing can change.
-   *Custom wall:* there is no hidden phase — each post appears as it is sent, and can still be edited; the QR stays
-   beside the wall until you hide it.
-4. **Discuss.** The wall is a grid of cards. Click a card for the big view (click a photo to zoom; ← / → or a
+   stragglers). Every member can keep editing their group's post — also after the wall opens — until you press
+   Finish & delete (edits show on the projector at once).
+   *Custom wall:* there is no hidden phase — each post appears when the group presses Post; the QR stays beside the
+   wall until you hide it (hide it to give the tiles more room).
+4. **Discuss.** Every post is a tile and they all fit on the screen at once — the layout gives the longest text and
+   the photos the most room; a post too long to fit even at the smallest size fades out at the bottom. Click a tile
+   for the big view (click a photo to zoom; ← / → or a
    presentation clicker moves between cards; Esc closes). Week 13 Spot the Nine Mistakes: **Show the nine fixes**.
    Describe a Chart: one column per chart, each sentence under its chart.
    **QR** shows the code again so students can look at the wall on their phones.
@@ -54,8 +62,9 @@ screen.
 
 **If the projector browser reloads:** open the teacher link again on the same laptop and press **Resume wall**.
 
-**Data:** a pair name (nicknames; the join screen refuses anything that looks like a student ID) and what the pair
-posts. Nothing else. A wall is deleted at **Finish & delete**, or automatically 3 hours after it was opened.
+**Data:** the group name and the members' nicknames (the join screen refuses anything that looks like a student ID)
+and what the group posts. Anyone with the wall code can see the group list (so members can tap their name); posts
+stay closed until the wall opens. Nothing else. A wall is deleted at **Finish & delete**, or automatically 3 hours after it was opened.
 
 ## Limits
 

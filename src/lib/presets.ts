@@ -228,7 +228,7 @@ export const PRESETS: Preset[] = [
     text: {label: 'Your answer', th: 'คำตอบของคุณ', placeholder: 'Type your answer …', required: true},
     intro: '',
     introTh: '',
-    steps: [{label: 'POST', time: '', text: 'Type your name, write your answer and post it. It appears on the wall straight away — you can still edit it.'}],
+    steps: [{label: 'POST', time: '', text: 'Type everyone\'s nicknames (or tap your name if your group is already in), write together and post. It appears on the wall — you can still edit it.'}],
   },
 ];
 

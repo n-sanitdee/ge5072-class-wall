@@ -1594,3 +1594,305 @@ html.is-host {
     columns: 1;
   }
 }
+
+/* ── tiles (27 Oct 2026, Mew): every post is a tile; the projector fits ALL of them on one screen ── */
+.ptile {
+  position: relative;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 0.55rem 0.7rem 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  cursor: pointer;
+  animation: rise 0.45s ease both;
+}
+.ptile:hover {
+  outline: 3px solid var(--accent);
+}
+.ptile.mine {
+  outline: 3px solid var(--accent);
+}
+.ptile-head {
+  flex: none;
+  line-height: 1.2;
+  color: var(--ink);
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+.ptile-head b {
+  font-weight: 800;
+}
+.ptile-head .you {
+  color: var(--accent);
+  font-weight: 700;
+}
+.ptile-members {
+  display: block;
+  font-size: 0.78em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.ptile-img,
+.ptile .img-loading,
+.ptile .img-missing {
+  width: 100%;
+  border-radius: 8px;
+  background: #fff;
+  object-fit: contain;
+  display: block;
+}
+.ptile-body {
+  min-height: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+.ptile-body .post-body p:first-child {
+  margin-top: 0;
+}
+/* projector: fixed-size tiles; the photo takes most of the room, the words shrink to fit */
+.ptile.fit .ptile-img,
+.ptile.fit .img-loading,
+.ptile.fit .img-missing {
+  flex: 3 1 0;
+  min-height: 0;
+  height: 0;
+}
+.ptile.fit.photo-only .ptile-img {
+  flex: 1 1 0;
+}
+.ptile.fit .ptile-body {
+  flex: 1 1 0;
+  overflow: hidden;
+}
+.ptile.fit.has-photo .ptile-body {
+  flex: 1.2 1 0;
+}
+/* phone: two columns, tiles grow with their text */
+.phone-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  align-items: start;
+}
+.phone-board .ptile {
+  font-size: 0.82rem;
+}
+.phone-board .ptile.has-photo {
+  grid-column: span 2; /* photos first: a photo post takes the full width */
+}
+.phone-board .ptile-img {
+  max-height: 340px;
+}
+.phone-board .chart-group,
+.phone-board .empty {
+  grid-column: 1 / -1;
+}
+.wall-screen.fits {
+  height: 100vh;
+  overflow: hidden;
+}
+.fit-board {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+}
+.board.fit {
+  flex: 1;
+  min-height: 0;
+  columns: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.8rem 1rem 0.8rem;
+}
+.board.fit .not-posted {
+  flex: none;
+  margin: 0;
+}
+.wall-screen.fits .live {
+  min-height: 0;
+  padding: 0.8rem 1rem;
+}
+.wall-screen.fits .live-main {
+  min-height: 0;
+}
+.wall-screen.fits .chart-board {
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
+  padding: 0.8rem 1rem;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.wall-screen.fits .chart-col {
+  min-height: 0;
+}
+.chart-tiles {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.chart-tiles .ptile {
+  flex: 1 1 0;
+  max-height: 14rem;
+}
+.tile-who {
+  font-size: 0.9rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+.spot-members {
+  margin-top: -0.6rem;
+  font-size: 1.1rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+/* ── joining: participants first; the others tap their name ── */
+.group-join {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.group-row {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.group-name {
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.group-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.add-me {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+.add-me input,
+.member-row input {
+  flex: 1;
+  min-width: 0;
+  border: 2px solid var(--line);
+  border-radius: 10px;
+  padding: 0.5em 0.7em;
+  font-size: 16px;
+  background: #fff;
+}
+.member-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.add-person {
+  align-self: flex-start;
+}
+.phone-head .me-members {
+  font-weight: 500;
+  opacity: 0.9;
+}
+.phone-head .me-switch {
+  color: #fff;
+  opacity: 0.8;
+  margin-left: 8px;
+  font-size: 0.8rem;
+}
+
+/* ── the group's post: big boxes, autosave ── */
+.composer-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.composer-head h2 {
+  margin: 0;
+}
+.save-state {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.save-state.saved {
+  color: var(--good);
+}
+.save-state.error {
+  color: var(--bad);
+}
+.composer textarea {
+  resize: vertical;
+  line-height: 1.5;
+  min-height: 6em;
+}
+.composer textarea.big-box {
+  min-height: 40vh;
+}
+.ptile-body.clipped {
+  -webkit-mask-image: linear-gradient(to bottom, #000 82%, transparent);
+  mask-image: linear-gradient(to bottom, #000 82%, transparent);
+}
+.join-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.join-tab {
+  border: 2px solid var(--line);
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px 10px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--ink);
+  cursor: pointer;
+  line-height: 1.25;
+}
+.join-tab .th {
+  font-weight: 500;
+  font-size: 0.8rem;
+}
+.join-tab.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.group-row .chip-btn {
+  padding: 4px 12px;
+}
+.add-chip {
+  border-style: dashed !important;
+  color: var(--accent);
+}
+/* phone: long posts are cut with a fade; tap a tile to read all of it */
+.phone-board .ptile-body {
+  max-height: 15em;
+  overflow: hidden;
+}
+.viewer-body {
+  flex-direction: column;
+  gap: 12px;
+}
+.viewer-text {
+  background: #fff;
+  color: var(--body);
+  border-radius: 12px;
+  padding: 14px 16px;
+  width: 100%;
+  font-size: 1rem;
+}

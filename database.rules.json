@@ -153,7 +153,7 @@
             ".validate": "newData.isString() && newData.val().length <= 120"
           },
           "prompt": {
-            ".validate": "newData.isString() && newData.val().length <= 600"
+            ".validate": "newData.isString() && newData.val().length <= 5000"
           },
           "preset": {
             ".validate": "newData.isString() && newData.val().length <= 40"
@@ -192,16 +192,22 @@
           }
         },
         "teams": {
-          ".read": "(auth != null && root.child('walls').child($code).child('meta/hostUid').val() == auth.uid) || (root.child('walls').child($code).child('pub/revealed').val() == true || root.child('walls').child($code).child('pub/live').val() == true)",
+          ".read": true,
           "$tid": {
             ".read": true,
             ".write": "(auth != null && root.child('walls').child($code).child('meta/hostUid').val() == auth.uid) || (!data.exists() && newData.exists() && !root.child('walls').child($code).child('kicked').child($tid).exists() && root.child('walls').child($code).child('pub/locked').val() != true && root.child('walls').child($code).child('pub/revealed').val() != true && root.child('walls').child($code).child('pub/ended').val() != true)",
             ".validate": "$tid.matches(/^[A-Za-z0-9]{20}$/) && newData.hasChildren(['name', 'joinedAt'])",
             "name": {
-              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24 && !newData.val().contains('.') && !newData.val().contains('$') && !newData.val().contains('#') && !newData.val().contains('[') && !newData.val().contains(']') && !newData.val().contains('/') && (data.exists() ? newData.val() == data.val() : newData.parent().parent().parent().child('names').child(newData.val().toLowerCase().replace(' ', '')).val() == $tid)"
+              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 60 && !newData.val().contains('.') && !newData.val().contains('$') && !newData.val().contains('#') && !newData.val().contains('[') && !newData.val().contains(']') && !newData.val().contains('/') && (data.exists() ? newData.val() == data.val() : newData.parent().parent().parent().child('names').child(newData.val().toLowerCase().replace(' ', '')).val() == $tid)"
             },
             "joinedAt": {
               ".validate": "data.exists() ? newData.val() == data.val() : newData.val() == now"
+            },
+            "members": {
+              ".write": "root.child('walls').child($code).child('teams').child($tid).child('name').exists() && !root.child('walls').child($code).child('kicked').child($tid).exists() && root.child('walls').child($code).child('pub/ended').val() != true",
+              "$i": {
+                ".validate": "$i.matches(/^([0-9]|1[01])$/) && newData.isString() && newData.val().length >= 1 && newData.val().length <= 30"
+              }
             },
             "$other": {
               ".validate": false
@@ -234,17 +240,20 @@
           ".read": "(auth != null && root.child('walls').child($code).child('meta/hostUid').val() == auth.uid) || (root.child('walls').child($code).child('pub/revealed').val() == true || root.child('walls').child($code).child('pub/live').val() == true)",
           "$tid": {
             ".read": true,
-            ".write": "(auth != null && root.child('walls').child($code).child('meta/hostUid').val() == auth.uid) || (root.child('walls').child($code).child('teams').child($tid).child('name').exists() && !root.child('walls').child($code).child('kicked').child($tid).exists() && root.child('walls').child($code).child('pub/revealed').val() != true && root.child('walls').child($code).child('pub/ended').val() != true)",
-            ".validate": "newData.hasChild('at') && (newData.hasChild('text') || newData.hasChild('fields') || newData.hasChild('photo'))",
+            ".write": "(auth != null && root.child('walls').child($code).child('meta/hostUid').val() == auth.uid) || (root.child('walls').child($code).child('teams').child($tid).child('name').exists() && !root.child('walls').child($code).child('kicked').child($tid).exists() && root.child('walls').child($code).child('pub/ended').val() != true)",
+            ".validate": "newData.hasChild('at')",
             "at": {
               ".validate": "newData.val() == now"
             },
             "text": {
-              ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 1000"
+              ".validate": "newData.isString() && newData.val().length >= 1"
+            },
+            "done": {
+              ".validate": "newData.val() == true"
             },
             "fields": {
               "$f": {
-                ".validate": "$f.matches(/^[fb][0-9]$/) && newData.isString() && newData.val().length >= 1 && newData.val().length <= 400"
+                ".validate": "$f.matches(/^[fb][0-9]$/) && newData.isString() && newData.val().length >= 1"
               }
             },
             "choice": {
@@ -262,7 +271,7 @@
           ".read": "(auth != null && root.child('walls').child($code).child('meta/hostUid').val() == auth.uid) || (root.child('walls').child($code).child('pub/revealed').val() == true || root.child('walls').child($code).child('pub/live').val() == true)",
           "$tid": {
             ".read": true,
-            ".write": "(auth != null && root.child('walls').child($code).child('meta/hostUid').val() == auth.uid) || (root.child('walls').child($code).child('teams').child($tid).child('name').exists() && !root.child('walls').child($code).child('kicked').child($tid).exists() && root.child('walls').child($code).child('pub/revealed').val() != true && root.child('walls').child($code).child('pub/ended').val() != true)",
+            ".write": "(auth != null && root.child('walls').child($code).child('meta/hostUid').val() == auth.uid) || (root.child('walls').child($code).child('teams').child($tid).child('name').exists() && !root.child('walls').child($code).child('kicked').child($tid).exists() && root.child('walls').child($code).child('pub/ended').val() != true)",
             ".validate": "newData.isString() && newData.val().beginsWith('data:image/jpeg;base64,') && newData.val().length <= 200000 && root.child('walls').child($code).child('pub/photo').val() == true"
           }
         },
@@ -270,7 +279,7 @@
           ".read": "(auth != null && root.child('walls').child($code).child('meta/hostUid').val() == auth.uid) || (root.child('walls').child($code).child('pub/revealed').val() == true || root.child('walls').child($code).child('pub/live').val() == true)",
           "$tid": {
             ".read": true,
-            ".write": "(auth != null && root.child('walls').child($code).child('meta/hostUid').val() == auth.uid) || (root.child('walls').child($code).child('teams').child($tid).child('name').exists() && !root.child('walls').child($code).child('kicked').child($tid).exists() && root.child('walls').child($code).child('pub/revealed').val() != true && root.child('walls').child($code).child('pub/ended').val() != true)",
+            ".write": "(auth != null && root.child('walls').child($code).child('meta/hostUid').val() == auth.uid) || (root.child('walls').child($code).child('teams').child($tid).child('name').exists() && !root.child('walls').child($code).child('kicked').child($tid).exists() && root.child('walls').child($code).child('pub/ended').val() != true)",
             ".validate": "newData.isString() && newData.val().beginsWith('data:image/jpeg;base64,') && newData.val().length <= 1500000 && root.child('walls').child($code).child('pub/photo').val() == true"
           }
         },
