@@ -19,7 +19,7 @@ export type Pub = {
   revealed: boolean;
   /** No new pairs can join. */
   locked?: boolean;
-  /** The host pressed "Finish & delete" (the wall is deleted a moment later). */
+  /** The host pressed "Finish": read-only from now on; the boards archiver saves it, then deletes it at 3 h. */
   ended?: boolean;
   /** Number of pairs/groups the teacher expects; 0 = not set. */
   expected?: number;
@@ -61,6 +61,8 @@ export type Draft = {
 };
 
 export const STALE_MS = 3 * 60 * 60 * 1000;
+/** Fallback clean-up (host page, hourly job): later than the boards archiver, so a wall is saved before it goes. */
+export const FALLBACK_STALE_MS = 6 * 60 * 60 * 1000;
 
 /** Limits shared by the phone, the host and database.rules.json. Answers have no length limit (Mew, 27 Oct 2026). */
 export const LIMITS = {

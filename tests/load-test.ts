@@ -146,6 +146,7 @@ check(`${N}/${N} phones learned that the wall ended`, pairs.every((p) => !p.stat
 const estClass = thumbBytes[0].bytes * 56 + fulls.reduce((s, f) => s + (f?.length ?? 0), 0) * 2;
 console.log(`\nDownload estimate for one class of 56 phones: ~${(estClass / 1e6).toFixed(0)} MB (Spark plan: 10 GB/month).`);
 for (const p of pairs) p.stop();
+await host.discard(); // never leave a test wall for the boards archiver
 await Promise.all([hostApp, dupApp, ...apps].map((a) => deleteApp(a.app).catch(() => {})));
 console.log(failures ? `\n${failures} FAILED` : '\nALL PASSED');
 process.exit(failures ? 1 : 0);

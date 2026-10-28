@@ -154,9 +154,11 @@ export class WallHost {
     return out.filter((r) => r !== null).sort((a, b) => b.createdAt - a.createdAt);
   }
 
-  /** Delete walls older than 3 hours (anyone signed in may, see database.rules.json). Returns how many. */
-  static async cleanupStale(db: Database, serverNow: number): Promise<number> {
-    const q = query(ref(db, 'wallIndex'), orderByChild('createdAt'), endAt(serverNow - STALE_MS - 60_000), limitToFirst(100));
+  /** Delete walls older than `olderThan` (anyone signed in may once they are 3 h old, see database.rules.json).
+   *  The boards archiver deletes walls at 3 h after saving them; the host page and the hourly job only catch
+   *  what it missed, so they wait FALLBACK_STALE_MS. Returns how many. */
+  static async cleanupStale(db: Database, serverNow: number, olderThan = STALE_MS): Promise<number> {
+    const q = query(ref(db, 'wallIndex'), orderByChild('createdAt'), endAt(serverNow - olderThan - 60_000), limitToFirst(100));
     const snap = await get(q);
     const doomed: Record<string, null> = {};
     snap.forEach((c) => {
@@ -321,11 +323,17 @@ export class WallHost {
     return Date.now() + this.view.offset;
   }
 
-  /** "Finish & delete": tell the phones, then delete everything. */
+  /** "Finish": phones show "This wall has ended" and nothing can change any more. The wall itself stays until the
+   *  boards site has saved it (ge5072-ladpet-boards tools/archive.py, every 10 min), which then deletes it once it is
+   *  3 hours old (Mew, 28 Oct 2026: finished walls publish their board automatically). */
   async finish() {
-    await update(ref(this.db, `${this.base}/pub`), {ended: true}).catch(() => {});
-    await update(ref(this.db), {[this.base]: null, [`wallIndex/${this.view.code}`]: null});
+    await update(ref(this.db, `${this.base}/pub`), {ended: true});
     this.destroy();
+  }
+
+  /** Delete the wall now, without a board (tests on the live database use this so test walls are never archived). */
+  async discard() {
+    await update(ref(this.db), {[this.base]: null, [`wallIndex/${this.view.code}`]: null});
   }
 
   destroy() {

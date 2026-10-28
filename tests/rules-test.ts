@@ -208,7 +208,7 @@ check('text wall: field keys are f0–f9 / b0–b9 only', await denied(set(ref(t
 check('text wall: the builder inputs (b0) are stored with the sentence', await allowed(tp.post({fields: {f0: 'Sales rose sharply by 20% in May.', b0: JSON.stringify({s: 0, v: 0, a: 0, p: 'by', x: '20%', w: 4})}})));
 check('text wall: no length limit on a field', await allowed(set(ref(tp.db, `walls/${textWall.view.code}/posts/${tp.tid}`), {at: serverTimestamp(), fields: {f0: 'x'.repeat(5000)}})));
 await textWall.finish();
-check('text wall deleted by the host', !(await get(ref(hostApp.db, `walls/${textWall.view.code}/meta`))).exists());
+check('text wall finished (kept for the boards archiver)', (await get(ref(hostApp.db, `walls/${textWall.view.code}/pub/ended`))).val() === true);
 
 // Wk14 chart wall: the host gives each name a chart; a post's chart must be the one it was given
 const chartWall = await WallHost.create(hostApp.db, uid, {preset: 'wk14-chart', section: 'TS66'});
@@ -269,10 +269,14 @@ const ended: boolean[] = [];
 phones[0].subscribe((s) => ended.push(!s.pub || !!s.pub.ended));
 await host.finish();
 await sleep(500);
-check('wall deleted by Finish & delete', !(await get(ref(hostApp.db, `walls/${code}/meta`))).exists());
+check('Finish keeps the wall (the boards archiver saves it)', (await get(ref(hostApp.db, `walls/${code}/meta`))).exists());
+check('Finish marks it ended', (await get(ref(hostApp.db, `walls/${code}/pub/ended`))).val() === true);
 const idx = await get(query(ref(hostApp.db, 'wallIndex'), orderByChild('createdAt'), limitToFirst(100)));
-check('wall index entry deleted', !idx.hasChild(code));
+check('wall index entry kept for the archiver', idx.hasChild(code));
+check('a finished wall is not listed as open', !(await WallHost.listOpen(hostApp.db)).some((w) => w.code === code));
 check('phones learn that the wall ended', ended.at(-1) === true);
+await Promise.all([host, textWall, chartWall, liveWall].map((w) => w.discard().catch(() => {})));
+check('the host can still delete its finished wall', !(await get(ref(hostApp.db, `walls/${code}/meta`))).exists());
 
 for (const p of [...phones, tp, ghost]) p.stop();
 console.log(`\n${passes} passed, ${failures} failed`);

@@ -198,8 +198,8 @@ check('saved file is titled with the week and activity', html.includes('Week 13 
 check('saved file embeds the photos and the names', (html.match(/<img src="data:image\/jpeg/g) ?? []).length === 10 && html.includes('Mint &amp; Ploy'));
 check('saved file includes the nine fixes', html.includes('Check: all nine mistakes'));
 
-// Finish & delete
-await host.click('button:has-text("Finish & delete")');
+// Finish
+await host.click('button:text-is("Finish")');
 await host.waitForSelector('text=Open Ladpet');
 await android.waitForSelector('text=This wall has ended');
 check('phones show "This wall has ended"', true);
@@ -256,7 +256,7 @@ const [dl2] = await Promise.all([host.waitForEvent('download'), host.click('butt
 await dl2.saveAs(`tests/out/${dl2.suggestedFilename()}`);
 const html2 = readFileSync(`tests/out/${dl2.suggestedFilename()}`, 'utf8');
 check('saved chart file: charts drawn, sentences under them', dl2.suggestedFilename().startsWith('Ladpet_Week14_Think-Pair-Share_Describe-a-Chart_TS66_') && (html2.match(/<svg/g) ?? []).length === 2 && html2.includes('fell sharply from 3,400'));
-await host.click('button:has-text("Finish & delete")');
+await host.click('button:text-is("Finish")');
 await host.waitForSelector('text=Open Ladpet');
 
 // ════════════════════════════════════════ 3. Wk13 · Map Your Company Profile (fill the blanks → one paragraph)
@@ -298,7 +298,7 @@ await host.keyboard.press('Escape');
 await android.reload();
 await android.waitForSelector('.phone-board .paragraph');
 check('phones after the reveal: the paragraph too', (await android.textContent('.phone-board .paragraph'))!.trim() === PARA);
-await host.click('button:has-text("Finish & delete")');
+await host.click('button:text-is("Finish")');
 await host.waitForSelector('text=Open Ladpet');
 
 // ════════════════════════════════════════ 4. Wk14 · What Changed (tap-to-build sentences) + reload + edit
@@ -366,7 +366,7 @@ await sleep(400);
 await shot(host, '42-host-changed-revealed');
 const board4 = (await host.textContent('.board'))!;
 check('revealed: four full sentences', ['Sales rose sharply by 20% in May.', 'The number of customers grew steadily from 800 to 1,200 last year.', 'Rent fell to 40,000 baht in 2025.', 'The number of followers remained steady at 12,000.'].every((x) => board4.includes(x)));
-await host.click('button:has-text("Finish & delete")');
+await host.click('button:text-is("Finish")');
 await host.waitForSelector('text=Open Ladpet');
 
 // ════════════════════════════════════════ 5. Custom wall: posts show straight away
@@ -422,7 +422,7 @@ check('a 3,000-character answer saves (no length limit)', (await third.inputValu
 await shot(host, '50-host-live-wall');
 await shot(android, '51-android-live-wall', true);
 check('android: no sideways scrolling on the live wall', await noHScroll(android));
-await host.click('button:has-text("Finish & delete")');
+await host.click('button:text-is("Finish")');
 
 console.log(`\n${passes} passed, ${failures} failed`);
 await cr.close();

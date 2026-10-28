@@ -3,7 +3,7 @@ import {backend, configured} from '../backend.ts';
 import {buildWallHtml, download, exportFileName} from '../lib/export.ts';
 import {openDatabase, signInHost} from '../lib/fb.ts';
 import {GOOD_P, NINE, PRESETS, type Preset, fullTitle, getPreset, titleParts, whoWord} from '../lib/presets.ts';
-import {SECTIONS, type PresetId, isPosted} from '../lib/types.ts';
+import {FALLBACK_STALE_MS, SECTIONS, type PresetId, isPosted} from '../lib/types.ts';
 import type {Database} from 'firebase/database';
 import {type HostView, WallHost, orderedTeams, revealBlocker} from '../lib/wall-host.ts';
 import {BoardView, type WallRow, WallList} from './WallList.tsx';
@@ -86,8 +86,8 @@ export default function HostApp() {
     signInHost(conn.app, backend)
       .then((id) => {
         setUid(id);
-        // Best effort: delete walls nobody finished (older than 3 h).
-        WallHost.cleanupStale(conn.db, Date.now()).catch(() => {});
+        // Best effort: delete walls the boards archiver missed (older than 6 h).
+        WallHost.cleanupStale(conn.db, Date.now(), FALLBACK_STALE_MS).catch(() => {});
       })
       .catch((e) => setError(`Could not sign in: ${e.message ?? e}`));
   }, [conn]);
@@ -275,8 +275,9 @@ function Setup({
         {err && <span className="error">{err}</span>}
       </div>
       <p className="setup-foot">
-        Students scan the Ladpet QR on the next screen and type their nicknames — no student IDs. Everything is
-        deleted when you press Finish &amp; delete, or 3 hours after the Ladpet was opened.
+        Students scan the Ladpet QR on the next screen and type their nicknames — no student IDs. When you press
+        Finish (or close joining), the posts are saved to the boards site within about 15 minutes; the wall itself is
+        deleted 3 hours after it was opened.
       </p>
     </div>
   );
@@ -340,8 +341,8 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
   async function finish() {
     const msg =
       saved || !postedIds.length || !shown
-        ? 'Finish and delete this Ladpet? Phones will show "This wall has ended".'
-        : 'You have not saved this Ladpet yet. Finish and delete it anyway?';
+        ? 'Finish this Ladpet? Phones will show "This wall has ended". Its board appears on the boards site within about 15 minutes.'
+        : 'Finish this Ladpet? Phones will show "This wall has ended". Its posts are saved to the boards site within about 15 minutes (Save the Ladpet is only for your own copy).';
     if (!confirm(msg)) return;
     setBusy(true);
     await host.finish().catch(() => {});
@@ -436,7 +437,7 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
           </button>
           {!ro && (
             <button className="btn danger" onClick={finish} disabled={busy}>
-              Finish &amp; delete
+              Finish
             </button>
           )}
         </div>
