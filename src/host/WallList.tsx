@@ -170,7 +170,7 @@ export function BoardView({row, onBack}: {row: WallRow; onBack: () => void}) {
     document.title = `${row.title} · ${row.section} · Ladpet`;
   }, [row]);
   return (
-    <div className="host board-view">
+    <div className={`host board-view sec-${row.section}`}>
       <header className="board-view-bar">
         <button className="back-link" onClick={onBack}>
           ← Host page

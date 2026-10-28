@@ -162,8 +162,10 @@ export function layoutTiles(items: Item[], w: number, h: number, gap: number) {
         const s = places[i].s;
         const tw = cw * s + gap * (s - 1);
         const th = ch * s + gap * (s - 1) - 30; // the name line
-        // very tall, narrow tiles read badly: count at most 1.4 × the width as usable height
-        const room = tw * Math.min(th, tw * 1.4);
+        // very tall, narrow tiles read badly: count at most 1.4 × the width as usable height; a photo in a wide,
+        // short tile shrinks to a strip, so for photos count at most 1.8 × the height as usable width (1920 px
+        // projector, 28 Oct 2026)
+        const room = (it.photo ? Math.min(tw, th * 1.8) : tw) * Math.min(th, tw * 1.4);
         const need = Math.max(120, it.chars) + (it.photo ? PHOTO_ROOM : 0);
         score = Math.min(score, room / need);
       });

@@ -1,0 +1,367 @@
+/* The teacher's screens in the same fun look as the phones and the saved boards (Mew, 28 Oct 2026): cream dotted
+   paper, ink outlines with solid offset shadows, Fredoka headings, sticker chips; a wall takes its section's colour.
+   Scoped to html.is-host, loaded after styles.css. */
+html.is-host {
+  --ink: #1d1a3a;
+  --body: #2c2950;
+  --muted: #5f5b80;
+  --paper: #fffaf2;
+  --sun: #ffd34d;
+  --fun: 'Fredoka', 'Sarabun Thai', 'Noto Sans Thai', system-ui, sans-serif;
+  --font: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, 'Sarabun Thai', 'Noto Sans Thai', 'Leelawadee UI', Thonburi, Tahoma, sans-serif;
+}
+html.is-host body {
+  background: var(--paper) radial-gradient(#e8dfcf 1.2px, transparent 1.4px) 0 0 / 18px 18px;
+}
+.host {
+  --accent: #6d4aff;
+  --accent-deep: #4c2fd6;
+  --accent-soft: #ece6ff;
+  --hi: #db2777;
+  --ink: #1d1a3a;
+  --body: #2c2950;
+  --muted: #5f5b80;
+  --page: transparent;
+  --card: #fff;
+  --line: #1d1a3a;
+  font-weight: 500;
+}
+.host.sec-CA48 { --accent: #db2777; --accent-deep: #9d174d; --accent-soft: #ffe0ec; --hi: #6d4aff; }
+.host.sec-EC30 { --accent: #0d9488; --accent-deep: #115e59; --accent-soft: #d5f5ef; --hi: #db2777; }
+.host.sec-BS11 { --accent: #c2410c; --accent-deep: #8a2c06; --accent-soft: #ffe6d3; --hi: #6d4aff; }
+.host.sec-TS66 { --accent: #7c3aed; --accent-deep: #5b21b6; --accent-soft: #efe5ff; --hi: #db2777; }
+.host.sec-CA50 { --accent: #2563eb; --accent-deep: #1e40af; --accent-soft: #dfe9ff; --hi: #db2777; }
+.host.sec-AC21 { --accent: #15803d; --accent-deep: #14532d; --accent-soft: #daf5e2; --hi: #db2777; }
+
+.host h1,
+.host h2,
+.host h3,
+.host .btn,
+.host .section-btn,
+.host .preset-title,
+.host .join-code,
+.host .wl-sec,
+.host .tile-name,
+.host .ptile-head b,
+.host .spot-name,
+.host .count,
+.host .live-prompt {
+  font-family: var(--fun);
+}
+.host h1,
+.host h2,
+.host h3 {
+  font-weight: 600;
+}
+
+/* ── buttons + chips ── */
+.host .btn {
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 3px 3px 0 var(--ink);
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+.host .btn:hover:not(:disabled) {
+  background: #fff7d6;
+}
+.host .btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+.host .btn.primary {
+  background: var(--accent);
+  color: #fff;
+}
+.host .btn.primary:hover:not(:disabled) {
+  background: var(--accent-deep);
+}
+.host .btn.danger {
+  background: #ffd9e2;
+  color: #9f1239;
+}
+.host .btn.danger:hover:not(:disabled) {
+  background: #ffc2d1;
+}
+.host .btn.quiet {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.host .btn:disabled {
+  opacity: 1;
+  background: #ece9e1;
+  color: #8d89a6;
+  border-color: #8d89a6;
+  box-shadow: 2px 2px 0 #b9b5c9;
+}
+.host .btn.big {
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.host .chip {
+  background: #fff;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 9px;
+  padding: 0 8px;
+  box-shadow: 2px 2px 0 var(--ink);
+  transform: rotate(-3deg);
+}
+.host .chip.view-only {
+  background: var(--sun);
+  color: var(--ink);
+}
+.host .back-link {
+  background: #fff;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  font-family: var(--fun);
+  font-weight: 600;
+}
+.host .back-link:hover {
+  background: var(--sun);
+}
+
+/* ── start page ── */
+.setup-head h1 {
+  font-size: 2.4rem;
+  font-weight: 700;
+}
+.setup-head .logo {
+  transform: rotate(-6deg);
+  filter: drop-shadow(3px 3px 0 var(--ink));
+}
+.setup-head .logo rect:first-child {
+  fill: var(--accent);
+  stroke: var(--ink);
+  stroke-width: 3;
+}
+.host .wall-list,
+.host .preset-card,
+.host .custom,
+.host .section-btn {
+  background: #fff;
+  border: 2px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.host .wall-list {
+  border-radius: 18px;
+}
+.host .wall-list ul {
+  padding: 0 4px 6px 0;
+}
+.host .wall-list li {
+  border-top: 2px dashed #e3dccb;
+}
+.host .wall-list li:first-child {
+  border-top: 0;
+}
+.host .wl-sec {
+  display: inline-block;
+  justify-self: start;
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  padding: 0 6px;
+  box-shadow: 2px 2px 0 var(--ink);
+  transform: rotate(-3deg);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.host .wall-list li.open .wl-sec { background: var(--sun); }
+.host .wl-status.open {
+  color: #0f7a3d;
+}
+.host .step-no {
+  background: var(--sun);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  font-family: var(--fun);
+}
+.host .section-btn {
+  border-radius: 14px;
+  color: var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.host .section-btn.on {
+  background: var(--accent);
+  color: #fff;
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0 var(--ink);
+}
+.host .section-btn:nth-child(1).on { background: #15803d; }
+.host .section-btn:nth-child(2).on { background: #c2410c; }
+.host .section-btn:nth-child(3).on { background: #db2777; }
+.host .section-btn:nth-child(4).on { background: #2563eb; }
+.host .section-btn:nth-child(5).on { background: #0d9488; }
+.host .section-btn:nth-child(6).on { background: #7c3aed; }
+.host .preset-card {
+  border-radius: 16px;
+  border-top-width: 2px;
+}
+.host .preset-card::before {
+  content: '';
+  display: block;
+  height: 10px;
+  margin: -1rem -1rem 0.7rem;
+  border-bottom: 2px solid var(--ink);
+  border-radius: 14px 14px 0 0;
+  background: #cdf3e4;
+}
+.host .preset-card.theme-indigo::before {
+  background: #e6dcff;
+}
+.host .preset-card:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0 var(--ink);
+}
+.host .preset-card.on {
+  background: #fff7d6;
+  outline: 3px solid var(--sun);
+  outline-offset: 2px;
+}
+.host .preset-group h3 {
+  font-family: var(--fun);
+  color: var(--ink);
+}
+.host .custom input,
+.host .custom textarea {
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+}
+.host .custom input:focus,
+.host .custom textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px var(--sun);
+}
+
+/* ── the wall (projector) ── */
+.wall-bar {
+  background: var(--accent);
+  border-bottom: 3px solid var(--ink);
+  overflow: hidden;
+}
+.wall-bar::before {
+  content: '';
+  position: absolute;
+  right: -50px;
+  top: -80px;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  pointer-events: none;
+}
+.wall-bar > * {
+  position: relative;
+  z-index: 1;
+}
+.wall-title .kicker {
+  font-family: var(--fun);
+  font-weight: 600;
+}
+.wall-title h1 {
+  font-weight: 600;
+}
+.wall-title h1 .lead {
+  font-weight: 500;
+}
+.wall-actions .btn.quiet {
+  color: #fff;
+}
+.host .join-panel,
+.host .pairs-panel,
+.host .qr-pop,
+.host .spot-box,
+.host .fixes-box {
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: 18px;
+  box-shadow: 5px 5px 0 var(--ink);
+}
+.host .join-panel .qr {
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  padding: 6px;
+  background: #fff;
+}
+.host .join-code {
+  color: var(--accent);
+  font-weight: 700;
+  text-shadow: 3px 3px 0 var(--sun);
+}
+.host .join-code-label {
+  font-family: var(--fun);
+}
+.host .live-prompt {
+  background: var(--accent-soft);
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--ink);
+  padding: 0.5em 0.8em;
+  font-weight: 600;
+}
+.host .status-line b,
+.host .count b {
+  color: var(--accent);
+}
+.host .progress {
+  border: 2px solid var(--ink);
+  background: #fff;
+  border-radius: 999px;
+}
+.host .progress > div {
+  background: var(--accent);
+}
+.host .tile {
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 3px 3px 0 var(--ink);
+  background: #fff;
+}
+.host .tile:not(.done) {
+  border-style: dashed;
+  box-shadow: none;
+}
+.host .ptile {
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.host .ptile:hover {
+  outline: 3px solid var(--sun);
+  outline-offset: 1px;
+}
+.host .ptile-head b {
+  font-weight: 600;
+}
+.host .ptile-img {
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+}
+.host .fit-board {
+  padding: 0 3px 3px 0;
+  box-sizing: content-box;
+}
+.host .chart-card {
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.host .overlay {
+  background: rgba(29, 26, 58, 0.55);
+}
+
+/* ── a closed wall's saved board ── */
+.board-view-bar {
+  background: var(--accent);
+  border-bottom: 3px solid var(--ink);
+}
+.board-view-title {
+  font-family: var(--fun);
+  font-weight: 600;
+}

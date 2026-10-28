@@ -387,7 +387,7 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
   );
 
   return (
-    <div className={`host wall-screen theme-${preset.theme} ${shown ? 'fits' : ''}`}>
+    <div className={`host wall-screen theme-${preset.theme} sec-${view.pub.section} ${shown ? 'fits' : ''}`}>
       <header className="wall-bar">
         <div className="wall-title">
           <div className="kicker">

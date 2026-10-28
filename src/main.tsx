@@ -4,6 +4,7 @@ import {loadFunFonts, loadThaiFont} from './fonts.ts';
 import {StudentApp} from './student/StudentApp.tsx';
 import './styles.css';
 import './student-fun.css';
+import './host-fun.css';
 
 const HostApp = lazy(() => import('./host/HostApp.tsx'));
 
@@ -32,7 +33,7 @@ function App() {
 }
 
 loadThaiFont();
-if (location.hash.replace(/^#\/?/, '') !== 'host') loadFunFonts();
+loadFunFonts();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
