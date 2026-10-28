@@ -1622,6 +1622,13 @@ html.is-host {
   grid-template-columns: 1fr;
   overflow: hidden;
 }
+/* no photo: cap the text row at the box height so a long post scrolls instead of being cut off */
+.spot-box:not(.has-photo) {
+  grid-template-rows: minmax(0, 1fr);
+}
+.spot-box:not(.has-photo) .spot-text {
+  min-height: 0;
+}
 .spot-box.has-photo {
   grid-template-columns: minmax(0, 1.5fr) minmax(18rem, 1fr);
   height: 94vh;
