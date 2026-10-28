@@ -1,0 +1,463 @@
+/* The phones' fun look (Mew, 28 Oct 2026): the saved boards' theme — cream dotted paper, ink-outlined cards with
+   solid offset shadows, Fredoka headings, sticker labels and one accent colour per section (CA48 pink, EC30 teal,
+   BS11 orange, TS66 violet, CA50 blue, AC21 green). Loaded after styles.css; the projector (html.is-host) is untouched. */
+html:not(.is-host) {
+  --ink: #1d1a3a;
+  --body: #2c2950;
+  --muted: #5f5b80;
+  --paper: #fffaf2;
+  --line: #1d1a3a;
+  --sun: #ffd34d;
+  --fun: 'Fredoka', 'Sarabun Thai', 'Noto Sans Thai', system-ui, sans-serif;
+  --font: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, 'Sarabun Thai', 'Noto Sans Thai', 'Leelawadee UI', Thonburi, Tahoma, sans-serif;
+}
+html:not(.is-host) body {
+  background: var(--paper) radial-gradient(#e8dfcf 1.2px, transparent 1.4px) 0 0 / 18px 18px;
+}
+
+/* section accents (default = the boards' violet) */
+.phone {
+  --accent: #6d4aff;
+  --accent-deep: #4c2fd6;
+  --accent-soft: #ece6ff;
+  --hi: #db2777;
+  --ink: #1d1a3a;
+  --body: #2c2950;
+  --muted: #5f5b80;
+  --page: transparent;
+  --card: #fff;
+  --line: #1d1a3a;
+  font-weight: 500;
+}
+.phone.sec-CA48 { --accent: #db2777; --accent-deep: #9d174d; --accent-soft: #ffe0ec; --hi: #6d4aff; }
+.phone.sec-EC30 { --accent: #0d9488; --accent-deep: #115e59; --accent-soft: #d5f5ef; --hi: #db2777; }
+.phone.sec-BS11 { --accent: #c2410c; --accent-deep: #8a2c06; --accent-soft: #ffe6d3; --hi: #6d4aff; }
+.phone.sec-TS66 { --accent: #7c3aed; --accent-deep: #5b21b6; --accent-soft: #efe5ff; --hi: #db2777; }
+.phone.sec-CA50 { --accent: #2563eb; --accent-deep: #1e40af; --accent-soft: #dfe9ff; --hi: #db2777; }
+.phone.sec-AC21 { --accent: #15803d; --accent-deep: #14532d; --accent-soft: #daf5e2; --hi: #db2777; }
+
+.phone h1,
+.phone h2,
+.phone h3,
+.phone .btn,
+.phone .app-name,
+.phone .step-label,
+.phone .join-tab .en,
+.phone .live-head .en,
+.phone .revealed-head .en {
+  font-family: var(--fun);
+}
+.phone h1,
+.phone h2,
+.phone h3 {
+  font-weight: 600;
+  letter-spacing: 0.005em;
+}
+
+/* ── header: accent band, bubbles + a little sun, sticker section code ── */
+.phone-head {
+  position: relative;
+  overflow: hidden;
+  background: var(--accent);
+  border-bottom: 3px solid var(--ink);
+  padding: calc(14px + env(safe-area-inset-top)) 18px 18px;
+}
+.phone-head::before {
+  content: '';
+  position: absolute;
+  right: -46px;
+  top: -64px;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+}
+.phone-head::after {
+  content: '';
+  position: absolute;
+  right: 26px;
+  bottom: -34px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--sun);
+  border: 3px solid var(--ink);
+}
+.phone-head > * {
+  position: relative;
+  z-index: 1;
+}
+.phone-head .kicker {
+  font-family: var(--fun);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  opacity: 1;
+}
+.phone .chip {
+  background: #fff;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 9px;
+  padding: 0 8px;
+  box-shadow: 2px 2px 0 var(--ink);
+  transform: rotate(-3deg);
+  letter-spacing: 0.04em;
+}
+.phone-head h1 {
+  font-size: 1.55rem;
+  margin-top: 8px;
+  padding-right: 70px;
+}
+.phone-head h1 .lead {
+  font-weight: 500;
+  opacity: 0.9;
+}
+.phone-head .me {
+  background: #fff;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 var(--ink);
+  padding: 2px 12px;
+}
+.phone-head .me .link {
+  color: var(--accent-deep);
+}
+.phone-head .offline {
+  background: var(--sun);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  font-weight: 700;
+}
+
+/* ── cards ── */
+.phone .card-like,
+.phone .steps li,
+.phone .notice,
+.phone .chart-card,
+.phone .passage,
+.phone .build-card,
+.phone .frame,
+.phone .progress-phone,
+.phone .paragraph-preview,
+.phone .my-chart {
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.phone .card-like {
+  padding: 16px 16px 18px;
+}
+.phone .card-like h2 {
+  font-size: 1.3rem;
+}
+.phone .bi .th {
+  color: var(--muted);
+}
+.phone .intro .prompt,
+.phone .prompt {
+  background: var(--accent-soft);
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--ink);
+  padding: 12px 14px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+.phone .steps li {
+  padding: 12px 14px;
+}
+.phone .step-label {
+  border: 2px solid var(--ink);
+  border-radius: 9px;
+  padding: 1px 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  box-shadow: 2px 2px 0 var(--ink);
+  transform: rotate(-2deg);
+  display: inline-block;
+}
+.phone .step-label.think {
+  background: var(--accent);
+}
+.phone .step-label.pair {
+  background: var(--sun);
+  color: var(--ink);
+}
+.phone .step-label.share,
+.phone .step-label.post {
+  background: var(--hi);
+}
+
+/* ── buttons ── */
+.phone .btn {
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: 3px 3px 0 var(--ink);
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+.phone .btn:hover:not(:disabled) {
+  background: #fff7d6;
+}
+.phone .btn:active:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+.phone .btn.primary {
+  background: var(--accent);
+  color: #fff;
+}
+.phone .btn.primary:hover:not(:disabled) {
+  background: var(--accent-deep);
+}
+.phone .btn.big {
+  font-size: 1.2rem;
+  padding: 0.7em 1em;
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.phone .btn:disabled {
+  opacity: 1;
+  background: #ece9e1;
+  color: #8d89a6;
+  border-color: #8d89a6;
+  box-shadow: 3px 3px 0 #b9b5c9;
+}
+.phone .link {
+  color: var(--accent-deep);
+  font-weight: 700;
+}
+
+/* ── join ── */
+.phone .join-tabs {
+  gap: 12px;
+}
+.phone .join-tab {
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 3px 3px 0 var(--ink);
+  color: var(--ink);
+}
+.phone .join-tab .en {
+  font-weight: 600;
+}
+.phone .join-tab.on {
+  background: var(--sun);
+  border-color: var(--ink);
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0 var(--ink);
+}
+.phone .join-tab.on .th {
+  color: var(--ink);
+}
+.phone .group-row {
+  border: 2px dashed #c9c3b4;
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+.phone .group-name {
+  font-family: var(--fun);
+  font-weight: 600;
+  color: var(--ink);
+}
+.phone .chip-btn {
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.phone .group-row:nth-child(6n + 1) .chip-btn:not(.add-chip) { background: #ffd9e2; }
+.phone .group-row:nth-child(6n + 2) .chip-btn:not(.add-chip) { background: #fff0b3; }
+.phone .group-row:nth-child(6n + 3) .chip-btn:not(.add-chip) { background: #cdf3e4; }
+.phone .group-row:nth-child(6n + 4) .chip-btn:not(.add-chip) { background: #d4e8ff; }
+.phone .group-row:nth-child(6n + 5) .chip-btn:not(.add-chip) { background: #e6dcff; }
+.phone .group-row:nth-child(6n + 6) .chip-btn:not(.add-chip) { background: #ffe0c7; }
+.phone .chip-btn.on {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--ink);
+}
+.phone .chip-btn.add-chip {
+  border-style: dashed;
+  box-shadow: none;
+  color: var(--accent-deep);
+}
+.phone .join-form input,
+.phone .composer textarea,
+.phone .add-me input,
+.phone .small-input,
+.phone .code-form input {
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: #fff;
+}
+.phone .join-form input:focus,
+.phone .composer textarea:focus,
+.phone .add-me input:focus,
+.phone .small-input:focus,
+.phone .code-form input:focus,
+.phone input.blank:focus {
+  outline: none;
+  border-color: var(--ink);
+  box-shadow: 0 0 0 4px var(--sun);
+}
+.phone .join-form input::placeholder,
+.phone .composer textarea::placeholder {
+  color: #a7a2bb;
+}
+
+/* ── composer ── */
+.phone .composer-head h2 {
+  margin: 0;
+}
+.phone .save-state {
+  font-weight: 800;
+}
+.phone .save-state.saved {
+  background: #cdf3e4;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  padding: 0 10px;
+}
+.phone .photo-btn {
+  border: 2px dashed var(--ink);
+  border-radius: 16px;
+  background: #fff7d6;
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: none;
+}
+.phone .photo-preview {
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+}
+.phone .posted-head {
+  background: #cdf3e4;
+  border: 2px solid var(--ink);
+  border-radius: 14px;
+  padding: 8px 12px;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.phone .posted-head .en {
+  color: var(--ink);
+}
+.phone .tick {
+  background: var(--good);
+  border: 2px solid var(--ink);
+}
+.phone input.blank {
+  border: 2px solid var(--ink);
+  border-radius: 9px;
+  background: #fff7d6;
+}
+.phone .build-card.done {
+  background: #f0fbf5;
+}
+.phone .build-card .num,
+.phone .frame .num {
+  border: 2px solid var(--ink);
+}
+.phone .sentence-preview {
+  border: 2px dashed var(--ink);
+  border-radius: 12px;
+}
+
+/* ── the wall on a phone ── */
+.phone .live-head,
+.phone .revealed-head {
+  align-self: flex-start;
+  background: var(--sun);
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  padding: 4px 12px;
+  box-shadow: 3px 3px 0 var(--ink);
+  transform: rotate(-1.5deg);
+}
+.phone .live-head .en,
+.phone .revealed-head .en {
+  font-weight: 600;
+  color: var(--ink);
+}
+.phone .ptile {
+  border: 2px solid var(--ink);
+  border-radius: 16px;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.phone .ptile.mine {
+  outline: 3px solid var(--sun);
+  outline-offset: 2px;
+}
+.phone .ptile-head b {
+  font-family: var(--fun);
+  font-weight: 600;
+}
+.phone .ptile-img {
+  border: 2px solid var(--ink);
+  border-radius: 10px;
+}
+.phone .progress-phone {
+  padding: 12px 14px;
+}
+.phone .progress {
+  border: 2px solid var(--ink);
+  background: #fff;
+  height: 14px;
+  border-radius: 999px;
+}
+.phone .progress > div {
+  background: var(--accent);
+}
+
+/* ── the code screen and "ended" screen (no section yet) ── */
+.phone.screen.center::before {
+  content: '';
+  width: 74px;
+  height: 74px;
+  border-radius: 20px;
+  border: 3px solid var(--ink);
+  box-shadow: 4px 4px 0 var(--ink);
+  transform: rotate(-6deg);
+  background:
+    linear-gradient(#ffd9e2, #ffd9e2) 10px 10px / 22px 26px no-repeat,
+    linear-gradient(#fff0b3, #fff0b3) 38px 10px / 22px 16px no-repeat,
+    linear-gradient(#cdf3e4, #cdf3e4) 10px 42px / 22px 17px no-repeat,
+    linear-gradient(#d4e8ff, #d4e8ff) 38px 32px / 22px 27px no-repeat,
+    var(--accent);
+}
+.phone .app-name {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+.phone .code-form {
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: 20px;
+  box-shadow: 5px 5px 0 var(--ink);
+  padding: 18px 16px 20px;
+}
+.phone .code-form label .en {
+  font-family: var(--fun);
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 1.05rem;
+}
+.phone .code-form input {
+  font-family: var(--fun);
+  font-weight: 600;
+  background: #fff7d6;
+}
+
+/* the photo viewer */
+.phone .phone-viewer .viewer-head {
+  font-family: var(--fun);
+  font-weight: 600;
+}

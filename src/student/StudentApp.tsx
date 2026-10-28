@@ -191,7 +191,7 @@ function Wall({code, onLeave}: {code: string; onLeave: () => void}) {
   };
 
   return (
-    <div className={`phone theme-${preset.theme}`}>
+    <div className={`phone theme-${preset.theme} sec-${pub.section}`}>
       <header className="phone-head">
         <div className="kicker">
           {APP_NAME} <span className="chip">{pub.section}</span>
