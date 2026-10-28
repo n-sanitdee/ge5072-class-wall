@@ -51,6 +51,13 @@ const store = {
       /* ignore */
     }
   },
+  forget(codes: string[]) {
+    try {
+      localStorage.setItem('cw:history', JSON.stringify(store.history().filter((x) => !codes.includes(x.code))));
+    } catch {
+      /* ignore */
+    }
+  },
   rememberSection(s: string) {
     try {
       localStorage.setItem('cw:section', s);
@@ -192,7 +199,7 @@ function Setup({
         </div>
       </header>
 
-      <WallList db={db} uid={uid} history={store.history()} onEnter={onEnter} onBoard={onBoard} />
+      <WallList db={db} uid={uid} history={store.history()} onEnter={onEnter} onBoard={onBoard} onForget={store.forget} />
 
       <h2 className="new-wall-head" id="new-wall">
         New wall

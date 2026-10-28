@@ -2,6 +2,7 @@
 // entered live (resumed if this computer opened them, view-only if not); closed walls show their saved board from
 // the ge5072-ladpet-boards site. Sources: wallIndex (walls still open), the boards site's walls.json (saved boards,
 // plus open walls that were taken off wallIndex so the 3 h cleanup keeps them), and this computer's history.
+// A closed wall with no saved board is not listed, and drops out of the history (Mew, 28 Oct 2026).
 import {type Database, get, ref} from 'firebase/database';
 import {useEffect, useState} from 'react';
 import {fullTitle, getPreset} from '../lib/presets.ts';
@@ -29,7 +30,7 @@ type Local = {code: string; section: string; title: string; createdAt: number};
 
 const sameDay = (a: number, b: number) => new Date(a).toDateString() === new Date(b).toDateString();
 
-async function loadRows(db: Database, uid: string, history: Local[]): Promise<WallRow[]> {
+async function loadRows(db: Database, uid: string, history: Local[]): Promise<{rows: WallRow[]; forget: string[]}> {
   const [open, saved] = await Promise.all([
     WallHost.listOpen(db).catch(() => []),
     fetch(`${BOARDS}walls.json`, {cache: 'no-store'})
@@ -61,6 +62,7 @@ async function loadRows(db: Database, uid: string, history: Local[]): Promise<Wa
       if (pub && !pub.ended) meta = (await get(ref(db, `walls/${s.wall}/meta`)).catch(() => null))?.val() ?? null;
     }
     const isOpen = !!pub && !pub.ended;
+    if (!isOpen && !s.board) continue; // its wall is gone and no board was saved
     const r: WallRow = {
       key: s.wall ?? `${s.week}-${s.section}`,
       when: meta?.createdAt ?? when,
@@ -75,13 +77,11 @@ async function loadRows(db: Database, uid: string, history: Local[]): Promise<Wa
     if (s.wall) byCode.set(s.wall, r);
   }
 
-  for (const h of history) {
-    if (byCode.has(h.code)) continue;
-    // A finished wall whose board was saved and published shows once, as that board.
-    if (rows.some((r) => !r.open && r.section === h.section && sameDay(r.when, h.createdAt))) continue;
-    rows.push({key: h.code, when: h.createdAt, section: h.section, title: h.title, open: false, code: h.code});
-  }
-  return rows.sort((a, b) => b.when - a.when);
+  // This computer's walls that are neither open nor saved as a board are finished and gone: forget them.
+  const forget = history
+    .filter((h) => !byCode.has(h.code) && !rows.some((r) => !r.open && r.section === h.section && sameDay(r.when, h.createdAt)))
+    .map((h) => h.code);
+  return {rows: rows.sort((a, b) => b.when - a.when), forget};
 }
 
 function when(ms: number): string {
@@ -96,12 +96,14 @@ export function WallList({
   history,
   onEnter,
   onBoard,
+  onForget,
 }: {
   db: Database;
   uid: string;
   history: Local[];
   onEnter: (code: string, mine: boolean) => Promise<boolean>;
   onBoard: (row: WallRow) => void;
+  onForget: (codes: string[]) => void;
 }) {
   const [rows, setRows] = useState<WallRow[] | null>(null);
   const [busy, setBusy] = useState('');
@@ -109,7 +111,10 @@ export function WallList({
 
   useEffect(() => {
     let live = true;
-    loadRows(db, uid, history).then((r) => live && setRows(r));
+    loadRows(db, uid, history).then(({rows: r, forget}) => {
+      if (forget.length) onForget(forget);
+      if (live) setRows(r);
+    });
     return () => {
       live = false;
     };
@@ -120,7 +125,14 @@ export function WallList({
       setBusy(r.key);
       const ok = await onEnter(r.code, !!r.mine);
       setBusy('');
-      if (!ok) setGone(new Set(gone).add(r.key)); // it ended meanwhile: show it as closed
+      if (!ok) {
+        // it ended meanwhile: show it as closed, or drop it if no board was saved
+        setGone(new Set(gone).add(r.key));
+        if (!r.board) {
+          setRows((rs) => rs?.filter((x) => x.key !== r.key) ?? rs);
+          if (r.code) onForget([r.code]);
+        }
+      }
       return;
     }
     if (r.board) onBoard(r);
