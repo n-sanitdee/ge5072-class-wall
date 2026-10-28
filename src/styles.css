@@ -1190,6 +1190,9 @@ html.is-host {
 .wl-status.closed {
   color: var(--muted);
 }
+.wl-status.locked {
+  color: #b06a00;
+}
 .wall-list li .btn {
   justify-self: end;
   white-space: nowrap;

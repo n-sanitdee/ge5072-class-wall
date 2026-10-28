@@ -18,6 +18,8 @@ export type WallRow = {
   section: string;
   title: string;
   open: boolean;
+  /** Open, but the host pressed Close joining. */
+  locked?: boolean;
   code?: string;
   /** This computer opened it, so it can be resumed with the host buttons. */
   mine?: boolean;
@@ -43,6 +45,7 @@ async function loadRows(db: Database, uid: string, history: Local[]): Promise<{r
     section: w.pub.section,
     title: fullTitle(getPreset(w.pub.preset), w.pub.title),
     open: true,
+    locked: !!w.pub.locked,
     code: w.code,
     mine: w.hostUid === uid,
   }));
@@ -69,6 +72,7 @@ async function loadRows(db: Database, uid: string, history: Local[]): Promise<{r
       section: s.section,
       title: isOpen ? fullTitle(getPreset(pub!.preset), pub!.title) : s.title,
       open: isOpen,
+      locked: isOpen && !!pub!.locked,
       code: s.wall,
       mine: isOpen && meta?.hostUid === uid,
       board: s.board,
@@ -163,7 +167,9 @@ export function WallList({
                   {r.title}
                   {open && r.code && <span className="wl-code"> · {formatCode(r.code)}</span>}
                 </span>
-                <span className={`wl-status ${open ? 'open' : 'closed'}`}>{open ? '● Open' : '○ Closed'}</span>
+                <span className={`wl-status ${open ? (r.locked ? 'locked' : 'open') : 'closed'}`}>
+                  {open ? (r.locked ? '◐ Joining closed' : '● Open') : '○ Closed'}
+                </span>
                 <button className={`btn small ${open ? 'primary' : ''}`} disabled={!can || !!busy} onClick={() => enter(r)} title={can ? undefined : 'No saved board for this wall'}>
                   {busy === r.key ? 'Opening…' : can ? (open && !r.mine ? 'Enter (view)' : 'Enter') : 'Not saved'}
                 </button>
