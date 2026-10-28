@@ -86,7 +86,8 @@ export class WallHost {
       locked: false,
       expected: 0,
     };
-    if (preset.id === 'custom' && w.prompt) pub.prompt = w.prompt.slice(0, 5000);
+    const prompt = preset.id === 'custom' ? w.prompt : preset.prompt;
+    if (prompt) pub.prompt = prompt.slice(0, 5000);
     for (let attempt = 0; attempt < 8; attempt++) {
       const code = randomCode();
       try {

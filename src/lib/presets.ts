@@ -31,6 +31,8 @@ export type Preset = {
   photo: boolean;
   /** Posts show as they arrive (no hidden phase). */
   live?: boolean;
+  /** Question for the phones, as a custom wall's would be (pub.prompt). */
+  prompt?: string;
   /** Free text box. */
   text?: {label: string; th: string; placeholder: string; required: boolean};
   /** Wk14 chart: sentence lines. */
@@ -121,6 +123,29 @@ export function adverbsFor(v: TrendVerb | undefined): string[] {
 export const WHEN_OPTIONS = ['last year', 'in 2025', 'in 2024', 'last month', 'in May', 'over the past six months', 'between January and June'];
 
 export const PRESETS: Preset[] = [
+  // ── Week 12 · Brainstorm: Your Company — the custom wall Mew ran in every section, made a one-tap activity (28 Oct 2026) ──
+  {
+    id: 'wk12-company',
+    week: 'Week 12',
+    activity: 'Brainstorm',
+    title: 'Your Company',
+    who: 'group',
+    theme: 'teal',
+    photo: true,
+    live: true,
+    prompt: [
+      'Products & services (ผลิตภัณฑ์และบริการ)',
+      'History & milestones (ประวัติและหมุดหมายสำคัญ)',
+      'Goals (เป้าหมาย)',
+      'Customers & markets (ลูกค้าและตลาด)',
+      'What makes it different (สิ่งที่ทำให้แตกต่าง)',
+      'Numbers that changed (ตัวเลขที่เปลี่ยนแปลงตั้งแต่ก่อตั้ง)',
+    ].join('\n'),
+    text: {label: "Your company's profile", th: 'ข้อมูลบริษัทของกลุ่ม', placeholder: '1. Products & services …', required: true},
+    intro: '',
+    introTh: '',
+    steps: [{label: 'POST', time: '', text: "Type everyone's nicknames (or tap your name if your group is already in). Add your company's photo, write the six topics together and post. It appears on the wall — you can still edit it."}],
+  },
   {
     id: 'wk13-spot9',
     week: 'Week 13',

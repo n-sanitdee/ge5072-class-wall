@@ -2,7 +2,7 @@
 
 export const SECTIONS = ['AC21', 'BS11', 'CA48', 'CA50', 'EC30', 'TS66'] as const;
 
-export type PresetId = 'wk13-spot9' | 'wk13-profile' | 'wk14-chart' | 'wk14-changed' | 'custom';
+export type PresetId = 'wk12-company' | 'wk13-spot9' | 'wk13-profile' | 'wk14-chart' | 'wk14-changed' | 'custom';
 
 /** Public part of a wall: phones read it with the code. Only the host writes it. */
 export type Pub = {
