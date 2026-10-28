@@ -4,7 +4,9 @@ import {buildWallHtml, download, exportFileName} from '../lib/export.ts';
 import {openDatabase, signInHost} from '../lib/fb.ts';
 import {GOOD_P, NINE, PRESETS, type Preset, fullTitle, getPreset, titleParts, whoWord} from '../lib/presets.ts';
 import {SECTIONS, type PresetId, isPosted} from '../lib/types.ts';
+import type {Database} from 'firebase/database';
 import {type HostView, WallHost, orderedTeams, revealBlocker} from '../lib/wall-host.ts';
+import {BoardView, type WallRow, WallList} from './WallList.tsx';
 import {APP_NAME, CARD_TINTS, ChartCard, DbImage, PostBody, Rich, Spinner, formatCode} from '../ui/common.tsx';
 import {FitBoard, Tile, itemFor, membersLine} from '../ui/tiles.tsx';
 import {Qr} from '../ui/Qr.tsx';
@@ -33,6 +35,22 @@ const store = {
       return '';
     }
   },
+  /** Walls this computer opened, newest first (the host list's "Closed" rows when no board was saved). */
+  history(): {code: string; section: string; title: string; createdAt: number}[] {
+    try {
+      return JSON.parse(localStorage.getItem('cw:history') ?? '[]');
+    } catch {
+      return [];
+    }
+  },
+  remember(w: {code: string; section: string; title: string; createdAt: number}) {
+    try {
+      const list = [w, ...store.history().filter((x) => x.code !== w.code)].slice(0, 200);
+      localStorage.setItem('cw:history', JSON.stringify(list));
+    } catch {
+      /* ignore */
+    }
+  },
   rememberSection(s: string) {
     try {
       localStorage.setItem('cw:section', s);
@@ -53,6 +71,7 @@ export default function HostApp() {
   const [error, setError] = useState<string | null>(null);
   const [host, setHost] = useState<WallHost | null>(null);
   const [view, setView] = useState<HostView | null>(null);
+  const [board, setBoard] = useState<WallRow | null>(null);
 
   useEffect(() => {
     document.title = `${APP_NAME} · teacher`;
@@ -74,31 +93,41 @@ export default function HostApp() {
   if (!conn) return <div className="host screen center"><p>Firebase is not configured.</p></div>;
   if (error) return <div className="host screen center"><p className="error">{error}</p></div>;
   if (!uid) return <div className="host screen center"><Spinner /></div>;
+  // Every screen opened from the host page has "← Host page" (Mew, 28 Oct 2026); leaving a wall does not end it.
+  const back = () => {
+    host?.destroy();
+    setHost(null);
+    setBoard(null);
+    document.title = `${APP_NAME} · teacher`;
+  };
   if (host && view)
     return (
       <WallScreen
         host={host}
         view={view}
+        onBack={back}
         onClose={() => {
           store.set(null);
           setHost(null);
         }}
       />
     );
+  if (board) return <BoardView row={board} onBack={back} />;
   return (
     <Setup
+      db={conn.db}
+      uid={uid}
+      onBoard={setBoard}
       onOpen={async (w) => {
         const h = await WallHost.create(conn.db, uid, w);
         store.set({code: h.view.code, section: w.section});
+        store.remember({code: h.view.code, section: w.section, title: fullTitle(getPreset(w.preset), h.view.pub.title), createdAt: h.view.createdAt});
         store.rememberSection(w.section);
         setHost(h);
       }}
-      onResume={async (code) => {
-        const h = await WallHost.resume(conn.db, uid, code);
-        if (!h) {
-          store.set(null);
-          return false;
-        }
+      onEnter={async (code, mine) => {
+        const h = mine ? await WallHost.resume(conn.db, uid, code) : await WallHost.watch(conn.db, code);
+        if (!h) return false;
         setHost(h);
         return true;
       }}
@@ -108,11 +137,17 @@ export default function HostApp() {
 
 // ─────────────────────────────────────────────────────────── setup
 function Setup({
+  db,
+  uid,
   onOpen,
-  onResume,
+  onEnter,
+  onBoard,
 }: {
+  db: Database;
+  uid: string;
   onOpen: (w: {preset: PresetId; section: string; title?: string; prompt?: string; photo?: boolean}) => Promise<void>;
-  onResume: (code: string) => Promise<boolean>;
+  onEnter: (code: string, mine: boolean) => Promise<boolean>;
+  onBoard: (row: WallRow) => void;
 }) {
   const [section, setSection] = useState(store.lastSection());
   const [presetId, setPresetId] = useState<PresetId | ''>('');
@@ -121,8 +156,6 @@ function Setup({
   const [photo, setPhoto] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const saved = store.get();
-  const [resumeGone, setResumeGone] = useState(false);
   const preset = presetId ? getPreset(presetId) : null;
   const ready = section && preset && (preset.id !== 'custom' || (title.trim() && prompt.trim()));
 
@@ -159,26 +192,11 @@ function Setup({
         </div>
       </header>
 
-      {saved && !resumeGone && (
-        <div className="resume">
-          <span>
-            Wall <b>{formatCode(saved.code)}</b>
-            {saved.section ? ` (${saved.section})` : ''} is still open on this computer.
-          </span>
-          <button
-            className="btn primary"
-            onClick={async () => {
-              setBusy(true);
-              if (!(await onResume(saved.code))) setResumeGone(true);
-              setBusy(false);
-            }}
-            disabled={busy}
-          >
-            Resume wall
-          </button>
-        </div>
-      )}
+      <WallList db={db} uid={uid} history={store.history()} onEnter={onEnter} onBoard={onBoard} />
 
+      <h2 className="new-wall-head" id="new-wall">
+        New wall
+      </h2>
       <section>
         <h2>
           <span className="step-no">1</span> Section
@@ -270,7 +288,8 @@ function Logo() {
 }
 
 // ─────────────────────────────────────────────────────────── the wall (projector)
-function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onClose: () => void}) {
+function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostView; onBack: () => void; onClose: () => void}) {
+  const ro = host.readOnly;
   const preset = getPreset(view.pub.preset);
   const teams = orderedTeams(view.teams);
   const live = !!view.pub.live;
@@ -372,8 +391,12 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
       <header className="wall-bar">
         <div className="wall-title">
           <div className="kicker">
+            <button className="back-link" onClick={onBack} title="Back to the host page — the wall stays open">
+              ← Host page
+            </button>
             {APP_NAME}
             <span className="chip">{view.pub.section}</span>
+            {ro && <span className="chip view-only" title="This wall was opened on another computer: you can show and save it, not control it.">View only</span>}
           </div>
           <Title preset={preset} pubTitle={view.pub.title} />
         </div>
@@ -381,12 +404,12 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
           <span className={`conn ${view.connected ? 'ok' : 'off'}`} title={view.connected ? 'Connected' : 'Offline — reconnecting'}>
             {view.connected ? '●' : '○ offline'}
           </span>
-          {view.pub.revealed && preset.id === 'wk13-spot9' && (
+          {!ro && view.pub.revealed && preset.id === 'wk13-spot9' && (
             <button className="btn" onClick={() => host.setFixes(!view.pub.fixes)}>
               {view.pub.fixes ? 'Hide the fixes' : 'Show the nine fixes'}
             </button>
           )}
-          {live && (
+          {live && !ro && (
             <button className="btn" onClick={() => host.setLocked(!view.pub.locked)}>
               {view.pub.locked ? 'Open joining' : 'Close joining'}
             </button>
@@ -404,9 +427,11 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
           <button className="btn quiet" onClick={() => document.documentElement.requestFullscreen?.().catch(() => {})} title="Full screen">
             ⛶
           </button>
-          <button className="btn danger" onClick={finish} disabled={busy}>
-            Finish &amp; delete
-          </button>
+          {!ro && (
+            <button className="btn danger" onClick={finish} disabled={busy}>
+              Finish &amp; delete
+            </button>
+          )}
         </div>
       </header>
 
@@ -439,6 +464,7 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
               <div className="count">
                 <b>{postedIds.length}</b> / {teams.length} posted
               </div>
+              {!ro && (
               <div className="expected" title="How many posts to wait for. Ladpet opens by itself when this many names have all posted.">
                 <span>Expected posts</span>
                 <button className="btn small" onClick={() => host.setExpected((view.pub.expected ?? 0) - 1)} aria-label="fewer">
@@ -451,12 +477,17 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
                   +
                 </button>
               </div>
-              <button className="btn" onClick={() => host.setLocked(!view.pub.locked)}>
-                {view.pub.locked ? 'Open joining' : 'Close joining'}
-              </button>
-              <button className="btn primary" onClick={() => host.reveal()} disabled={!postedIds.length}>
-                Reveal now
-              </button>
+              )}
+              {!ro && (
+                <button className="btn" onClick={() => host.setLocked(!view.pub.locked)}>
+                  {view.pub.locked ? 'Open joining' : 'Close joining'}
+                </button>
+              )}
+              {!ro && (
+                <button className="btn primary" onClick={() => host.reveal()} disabled={!postedIds.length}>
+                  Reveal now
+                </button>
+              )}
             </div>
             <div className="progress">
               <div style={{width: `${teams.length ? (100 * postedIds.length) / teams.length : 0}%`}} />
@@ -472,8 +503,8 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
                     key={id}
                     className={`tile ${done ? 'done' : ''}`}
                     style={{background: done ? CARD_TINTS[i % CARD_TINTS.length] : undefined}}
-                    title="Click to remove this name"
-                    onClick={() => confirm(`Remove "${t.name}"? (Use this for a duplicate or someone who left.)`) && host.remove(id)}
+                    title={ro ? undefined : 'Click to remove this name'}
+                    onClick={() => !ro && confirm(`Remove "${t.name}"? (Use this for a duplicate or someone who left.)`) && host.remove(id)}
                   >
                     <span className="tile-name">{t.name}</span>
                     {who && <span className="tile-who">{who}</span>}
@@ -519,7 +550,7 @@ function WallScreen({host, view, onClose}: {host: WallHost; view: HostView; onCl
           ids={postedIds}
           index={spot}
           onIndex={setSpot}
-          onRemove={async (id) => {
+          onRemove={ro ? undefined : async (id) => {
             if (!confirm(`Remove "${view.teams[id]?.name}" from the wall?`)) return;
             setSpot(null);
             await host.remove(id);
@@ -583,7 +614,7 @@ function Spotlight({
   ids: string[];
   index: number;
   onIndex: (i: number | null) => void;
-  onRemove: (id: string) => void;
+  onRemove?: (id: string) => void;
 }) {
   const id = ids[index];
   const t = view.teams[id];
@@ -629,9 +660,11 @@ function Spotlight({
           </div>
           <div className="spot-foot">
             {p.photo && <span className="muted">Click the photo to zoom.</span>}
-            <button className="link" onClick={() => onRemove(id)}>
-              Remove
-            </button>
+            {onRemove && (
+              <button className="link" onClick={() => onRemove(id)}>
+                Remove
+              </button>
+            )}
             <button className="btn" onClick={() => onIndex(null)}>
               Close (Esc)
             </button>

@@ -353,10 +353,12 @@ await sleep(400);
 await saved(ios);
 await shot(ios, '40-ios-changed-posted', true);
 await host.reload();
-await host.waitForSelector('text=Resume wall');
-await host.click('text=Resume wall');
+// The resume card became the "Your walls" list (28 Oct 2026): this computer's open wall shows "Enter".
+const row4 = host.locator('.wall-list li', {hasText: `${code4.slice(0, 3)} ${code4.slice(3)}`});
+await row4.waitFor();
+await row4.getByRole('button', {name: 'Enter', exact: true}).click();
 await host.waitForSelector('.join-code');
-check('projector reload: Resume wall works', (await host.textContent('.join-code'))!.replace(/\s/g, '') === code4);
+check('projector reload: the walls list re-enters the wall', (await host.textContent('.join-code'))!.replace(/\s/g, '') === code4);
 await shot(host, '41-host-changed-collect');
 await host.click('button:has-text("Reveal now")');
 await host.waitForSelector('.board .ptile');

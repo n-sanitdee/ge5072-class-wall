@@ -67,6 +67,8 @@ export class WallHost {
   private assignLoaded = false;
   /** Tests switch this off to check the manual path. */
   autoReveal = true;
+  /** Watching a wall another computer opened (its host is gone): show it, never write to it. */
+  readOnly = false;
 
   private constructor(db: Database, view: HostView) {
     this.db = db;
@@ -121,6 +123,37 @@ export class WallHost {
     return host;
   }
 
+  /**
+   * Show a wall this computer did not open — e.g. the projector restarted and its sign-in is gone (BS11, 28 Oct
+   * 2026). The rules let anyone signed in read a live or revealed wall's posts, so the board and its QR still work;
+   * only the host buttons do not. Null if the wall is gone or finished.
+   */
+  static async watch(db: Database, code: string): Promise<WallHost | null> {
+    const pub = (await get(ref(db, `walls/${code}/pub`)).catch(() => null))?.val() as Pub | null;
+    if (!pub || pub.ended) return null;
+    const meta = await get(ref(db, `walls/${code}/meta`)).catch(() => null);
+    const host = new WallHost(db, {code, pub, teams: {}, posts: {}, assign: {}, createdAt: meta?.val()?.createdAt ?? 0, connected: true, offset: 0});
+    host.readOnly = true;
+    host.attach();
+    return host;
+  }
+
+  /** Every wall still in wallIndex (newest first), for the host's list. Walls never listed there are not included. */
+  static async listOpen(db: Database): Promise<{code: string; createdAt: number; hostUid: string; pub: Pub}[]> {
+    const snap = await get(query(ref(db, 'wallIndex'), orderByChild('createdAt'), limitToFirst(100)));
+    const rows: {code: string; createdAt: number; hostUid: string}[] = [];
+    snap.forEach((c) => {
+      rows.push({code: c.key!, ...(c.val() as {createdAt: number; hostUid: string})});
+    });
+    const out = await Promise.all(
+      rows.map(async (r) => {
+        const pub = (await get(ref(db, `walls/${r.code}/pub`)).catch(() => null))?.val() as Pub | null;
+        return pub && !pub.ended ? {...r, pub} : null;
+      }),
+    );
+    return out.filter((r) => r !== null).sort((a, b) => b.createdAt - a.createdAt);
+  }
+
   /** Delete walls older than 3 hours (anyone signed in may, see database.rules.json). Returns how many. */
   static async cleanupStale(db: Database, serverNow: number): Promise<number> {
     const q = query(ref(db, 'wallIndex'), orderByChild('createdAt'), endAt(serverNow - STALE_MS - 60_000), limitToFirst(100));
@@ -160,6 +193,7 @@ export class WallHost {
    * removals. A name keeps its chart once given.
    */
   private assignCharts() {
+    if (this.readOnly) return;
     const charts = getPreset(this.view.pub.preset).charts;
     if (!charts || !this.assignLoaded || this.view.pub.revealed) return;
     const assign = {...this.view.assign};
@@ -200,7 +234,7 @@ export class WallHost {
 
   /** Phones show "still waiting for …" from pub/roster; keep it in step (batched). */
   private scheduleRoster() {
-    if (this.rosterTimer) return;
+    if (this.rosterTimer || this.readOnly) return;
     this.rosterTimer = setTimeout(() => {
       this.rosterTimer = null;
       const r = this.roster();
@@ -212,7 +246,7 @@ export class WallHost {
   }
 
   private maybeReveal() {
-    if (!this.autoReveal || this.revealing || this.view.pub.revealed || this.view.pub.live) return;
+    if (this.readOnly || !this.autoReveal || this.revealing || this.view.pub.revealed || this.view.pub.live) return;
     if (revealBlocker(this.view) === null) void this.reveal();
   }
 
