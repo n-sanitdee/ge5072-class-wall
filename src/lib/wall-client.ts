@@ -171,6 +171,21 @@ export class WallClient {
     if (this.watching) this.watchMine();
   }
 
+  /**
+   * "Not your group?" (Mew, 29 Oct 2026: a student added her name to the wrong group): take this phone's
+   * nickname off the group it is leaving, so it can tap its name under the right one. Only a name this phone typed
+   * (`typed`); phones that joined before 29 Oct don't know, and "+ me" adds at the end, so 'if-last'. The group keeps its last name.
+   */
+  async leaveGroup(me: string, typed: boolean | 'if-last') {
+    if (!this.tid || !me || !typed) return;
+    const team = (await get(ref(this.db, `${this.base}/teams/${this.tid}`))).val() as Team | null;
+    const members = team?.members ?? [];
+    const same = (m: string) => m.toLowerCase() === me.toLowerCase();
+    if (typed === 'if-last' && !(members.length && same(members[members.length - 1]))) return;
+    const rest = members.filter((m) => !same(m));
+    if (rest.length && rest.length < members.length) await this.setMembers(rest);
+  }
+
   async setMembers(members: string[]) {
     if (!this.tid) throw new Error('Join first.');
     await update(ref(this.db, `${this.base}/teams/${this.tid}`), {members: members.length ? members.slice(0, LIMITS.members) : null});

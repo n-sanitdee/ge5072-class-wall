@@ -24,8 +24,11 @@ import {orderedTeams} from '../lib/wall-host.ts';
 import {APP_NAME, Bi, CARD_TINTS, ChartCard, DbImage, Passage, PostBody, Rich, Spinner} from '../ui/common.tsx';
 import {Tile} from '../ui/tiles.tsx';
 
-/** `me` = which member this phone is (only for "you" on the screen). */
-type Saved = {code: string; tid: string; name: string; me?: string};
+/**
+ * `me` = which member this phone is ("you" on the screen). `typed` = this phone typed that name itself ("+ me" or
+ * starting the group), so "not your group?" may take it off; a name tapped from the list belongs to someone else's typing.
+ */
+type Saved = {code: string; tid: string; name: string; me?: string; typed?: boolean};
 const SAVED = 'cw:team';
 function loadSaved(): Saved | null {
   try {
@@ -132,6 +135,7 @@ function Wall({code, onLeave}: {code: string; onLeave: () => void}) {
   const mine = saved?.code === code ? saved : null;
   const [client] = useState(() => new WallClient(getDb(), code, mine?.tid ?? null, mine?.name ?? ''));
   const [me, setMe] = useState(mine?.me ?? '');
+  const [typed, setTyped] = useState(mine?.typed);
   const [st, setSt] = useState<WallState>(client.state);
   // undefined = still asking the database whether this wall exists
   const [exists, setExists] = useState<boolean | undefined>(undefined);
@@ -182,11 +186,17 @@ function Wall({code, onLeave}: {code: string; onLeave: () => void}) {
     client.forget();
     setMe('');
   };
+  // "not your group?": leave with your name taken off that group's list, then pick the right group
+  const switchGroup = async () => {
+    await client.leaveGroup(me, typed ?? 'if-last').catch(() => {});
+    rejoin();
+  };
   const {lead, title} = titleParts(preset, pub.title);
   const group = client.tid ? st.groups[client.tid] : undefined;
-  const onJoined = (who: string) => {
+  const onJoined = (who: string, typedIt: boolean) => {
     setMe(who);
-    save({code, tid: client.tid!, name: client.name, me: who});
+    setTyped(typedIt);
+    save({code, tid: client.tid!, name: client.name, me: who, typed: typedIt});
     setJoining(false);
   };
 
@@ -206,7 +216,7 @@ function Wall({code, onLeave}: {code: string; onLeave: () => void}) {
             {group?.members && group.members.length > 0 && defaultGroupName(group.members) !== client.name && <span className="me-members"> · {group.members.join(', ')}</span>}
             {me && (group?.members?.length ?? 0) > 1 && <span className="me-members"> · you: {me}</span>}
             {joined && (
-              <button className="link me-switch" onClick={rejoin}>
+              <button className="link me-switch" onClick={switchGroup}>
                 not your group?
               </button>
             )}
@@ -305,7 +315,7 @@ function MyChart({preset, chart}: {preset: Preset; chart: number | undefined}) {
  * Participants first (Mew, 27 Oct 2026): the first phone of a group types everyone's nicknames; the others tap
  * their name under their group and join the same post.
  */
-function GroupJoin({client, st, preset, locked, onJoined}: {client: WallClient; st: WallState; preset: Preset; locked: boolean; onJoined: (me: string) => void}) {
+function GroupJoin({client, st, preset, locked, onJoined}: {client: WallClient; st: WallState; preset: Preset; locked: boolean; onJoined: (me: string, typed: boolean) => void}) {
   const groups = orderedTeams(st.groups);
   const solo = preset.who === 'anyone';
   const [members, setMembers] = useState<string[]>(() => Array(preset.who === 'pair' ? 2 : solo ? 1 : 3).fill(''));
@@ -330,7 +340,7 @@ function GroupJoin({client, st, preset, locked, onJoined}: {client: WallClient; 
     setBusy(true);
     try {
       await client.joinGroup(tid, add ? who : undefined);
-      onJoined(who);
+      onJoined(who, add);
     } catch (x) {
       setErr(JOIN_ERRORS[x instanceof JoinFailed ? x.code : 'network']);
       setBusy(false);
@@ -353,7 +363,7 @@ function GroupJoin({client, st, preset, locked, onJoined}: {client: WallClient; 
     setBusy(true);
     try {
       await client.join(c.name, list);
-      onJoined(list[0]);
+      onJoined(list[0], true);
     } catch (x) {
       setErr(JOIN_ERRORS[x instanceof JoinFailed ? x.code : 'network']);
       setBusy(false);
