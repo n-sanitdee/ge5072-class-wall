@@ -215,9 +215,9 @@ export const PRESETS: Preset[] = [
     intro: 'Ladpet gives you one chart. Every figure is invented.',
     introTh: 'Ladpet จะให้กราฟคุณ 1 กราฟ (ตัวเลขทั้งหมดสมมติขึ้น)',
     steps: [
-      {label: 'THINK', time: '5 min', text: 'On your own, write two sentences about your chart: one with by, to or from … to; one with a noun (a sharp rise in …). Try a list word you have never used.'},
+      {label: 'THINK', time: '5 min', text: 'On your own, write two sentences: one with by, to or from … to; one with a noun (a sharp rise in …). Try a new list word.'},
       {label: 'PAIR', time: '3 min', text: 'Swap with your partner. Check each sentence: what changed + verb + how much + when?'},
-      {label: 'SHARE', time: '5 min', text: 'Post all your sentences — two each, four per pair. Posts stay hidden until everyone has posted.'},
+      {label: 'SHARE', time: '5 min', text: 'Post all your sentences: two each, so four (three of you: six). Posts stay hidden until everyone has posted.'},
     ],
   },
   {
