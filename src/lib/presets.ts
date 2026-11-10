@@ -212,8 +212,9 @@ export const PRESETS: Preset[] = [
         {label: 'Sentence 6', hint: 'only if you are three'},
       ],
     },
-    intro: 'Ladpet gives you one chart. Every figure is invented.',
-    introTh: 'Ladpet จะให้กราฟคุณ 1 กราฟ (ตัวเลขทั้งหมดสมมติขึ้น)',
+    // 11 Nov 2026 (Mew): "Every figure is invented" removed, as on slide 15.
+    intro: 'Ladpet gives you one chart.',
+    introTh: 'Ladpet จะให้กราฟคุณ 1 กราฟ',
     steps: [
       {label: 'THINK', time: '5 min', text: 'On your own, write two sentences: one with by, to or from … to; one with a noun (a sharp rise in …). Try a new list word.'},
       {label: 'PAIR', time: '3 min', text: 'Swap with your partner. Check each sentence: what changed + verb + how much + when?'},
