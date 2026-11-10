@@ -589,7 +589,14 @@ function Composer({client, st, preset, photoAllowed, live, revealed}: {client: W
       if (v?.trim()) fields[`f${i}`] = v;
     });
     if (preset.charts && st.chart === undefined) missing = ['Wait for your chart.', 'รอรับกราฟก่อน'];
-    else if (!fields.f0) missing = ['Write your best sentence.', 'เขียนประโยคที่ดีที่สุดของคุณ'];
+    else {
+      // 11 Nov 2026: sentences 1–4 required (two per member); the post names the empty ones
+      const empty = preset.fields.items.flatMap((f, i) => (f.required && !fields[`f${i}`] ? [i + 1] : []));
+      if (empty.length) {
+        const list = empty.length === 1 ? `${empty[0]}` : `${empty.slice(0, -1).join(', ')} and ${empty[empty.length - 1]}`;
+        missing = [`Write sentence${empty.length > 1 ? 's' : ''} ${list} — two each.`, `เขียนประโยคที่ ${empty.join(', ')} ให้ครบ (คนละ 2 ประโยค)`];
+      }
+    }
   } else if (!text.trim() && !mine?.photo) {
     missing = photoAllowed && preset.id === 'wk13-spot9' ? ['Add your photo (or type your fixes).', 'เพิ่มรูป (หรือพิมพ์คำที่แก้)'] : ['Type your answer.', 'พิมพ์คำตอบ'];
   }
@@ -800,7 +807,7 @@ function Composer({client, st, preset, photoAllowed, live, revealed}: {client: W
                 {f.required && <span className="req"> *</span>}
                 {f.hint && <span className="field-hint"> · {f.hint}</span>}
               </span>
-              <CoText minRows={3} value={lines[`f${i}`] ?? ''} onChange={(v) => setLines((l) => ({...l, [`f${i}`]: v}))} onBlur={() => void flush().catch(() => {})} />
+              <CoText minRows={2} value={lines[`f${i}`] ?? ''} onChange={(v) => setLines((l) => ({...l, [`f${i}`]: v}))} onBlur={() => void flush().catch(() => {})} />
             </label>
           ))}
         </div>

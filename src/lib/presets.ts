@@ -199,21 +199,25 @@ export const PRESETS: Preset[] = [
     theme: 'teal',
     photo: false,
     charts: CHARTS,
+    // 11 Nov 2026 (Mew): the pair posts ALL its sentences — two per member, so four; boxes 5–6 for a pair of three.
     fields: {
-      heading: 'Your sentences',
-      th: 'ประโยคของคุณ',
+      heading: 'Your sentences · two each',
+      th: 'ประโยคของคู่คุณ คนละ 2 ประโยค',
       items: [
-        {label: 'Your best sentence', required: true, hint: 'what changed + verb + how much + when'},
-        {label: 'Another sentence', hint: 'optional'},
-        {label: 'One more', hint: 'optional'},
+        {label: 'Sentence 1', required: true, hint: 'member 1'},
+        {label: 'Sentence 2', required: true, hint: 'member 1'},
+        {label: 'Sentence 3', required: true, hint: 'member 2'},
+        {label: 'Sentence 4', required: true, hint: 'member 2'},
+        {label: 'Sentence 5', hint: 'only if you are three'},
+        {label: 'Sentence 6', hint: 'only if you are three'},
       ],
     },
     intro: 'Ladpet gives you one chart. Every figure is invented.',
     introTh: 'Ladpet จะให้กราฟคุณ 1 กราฟ (ตัวเลขทั้งหมดสมมติขึ้น)',
     steps: [
-      {label: 'THINK', time: '5 min', text: 'Write three sentences: one with by, to or from … to; one with a noun (a sharp rise in …); one with a list word you have never used.'},
-      {label: 'PAIR', time: '3 min', text: 'Swap with the person next to you. Check: what changed + verb + how much + when?'},
-      {label: 'SHARE', time: '5 min', text: 'Post your best sentence. Posts stay hidden until everyone has posted.'},
+      {label: 'THINK', time: '5 min', text: 'On your own, write two sentences about your chart: one with by, to or from … to; one with a noun (a sharp rise in …). Try a list word you have never used.'},
+      {label: 'PAIR', time: '3 min', text: 'Swap with your partner. Check each sentence: what changed + verb + how much + when?'},
+      {label: 'SHARE', time: '5 min', text: 'Post all your sentences — two each, four per pair. Posts stay hidden until everyone has posted.'},
     ],
   },
   {

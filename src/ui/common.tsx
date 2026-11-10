@@ -125,7 +125,8 @@ export function PostBody({post, preset, big, chart}: {post: Post; preset: Preset
           {chart && c && <ChartCard chart={c} compact />}
           {preset.fields.items.map((_, i) =>
             f(i) ? (
-              <p key={i} className={i === 0 ? 'best' : 'more'}>
+              <p key={i} className="sent">
+                <span className="sent-n">{i + 1}</span>
                 {f(i)}
               </p>
             ) : null,

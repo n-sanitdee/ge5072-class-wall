@@ -47,7 +47,7 @@ export function buildWallHtml(opts: {
       const rows = preset.builder.map((b, i) => (f(i) ? `<dt>${esc(b.label)}</dt><dd>${esc(f(i)!)}</dd>` : '')).join('');
       if (rows) parts.push(`<dl>${rows}</dl>`);
     }
-    if (preset.fields) parts.push(...preset.fields.items.map((_, i) => (f(i) ? `<p class="${i ? 'more' : 'best'}">${esc(f(i)!)}</p>` : '')));
+    if (preset.fields) parts.push(...preset.fields.items.map((_, i) => (f(i) ? `<p class="sent"><span class="sent-n">${i + 1}</span>${esc(f(i)!)}</p>` : '')));
     if (p.text) parts.push(`<p class="text">${esc(p.text)}</p>`);
     const who = t.members?.length && defaultGroupName(t.members) !== t.name ? `<div class="who">${esc(t.members.join(', '))}</div>` : '';
     return `<article${img ? ' class="photo"' : ''}><h2>${esc(t.name)}</h2>${who}${parts.join('')}</article>`;
@@ -85,7 +85,7 @@ article h2{font-size:17px;margin:0 0 2px;color:var(--accent)}
 .who{font-size:13px;color:#64748b;margin-bottom:8px}
 article img{width:100%;border-radius:8px;border:1px solid #e3e5f1;display:block;margin-bottom:8px}
 .tag{font-size:13px;font-weight:700;color:#475569;margin-bottom:6px}
-.best{font-size:17px;font-weight:600;margin:4px 0}.more{margin:4px 0;color:#334155}
+.sent{margin:4px 0}.sent-n{display:inline-block;min-width:1.4em;font-size:.8em;font-weight:700;color:#64748b}
 dl{margin:0}dt{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-top:6px}dd{margin:2px 0 0}
 .text{white-space:pre-wrap;margin:4px 0}
 .para{margin:2px 0;line-height:1.5}

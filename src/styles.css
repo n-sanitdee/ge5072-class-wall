@@ -202,13 +202,16 @@ h3 {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.post-body .best {
-  font-weight: 650;
+/* Wk14 chart sentences: all equal, numbered as the phone's boxes (11 Nov 2026) */
+.post-body .sent {
   color: var(--ink);
-  font-size: 1.08em;
 }
-.post-body .more {
-  color: var(--body);
+.post-body .sent-n {
+  display: inline-block;
+  min-width: 1.4em;
+  font-size: 0.8em;
+  font-weight: 800;
+  color: var(--muted);
 }
 .chart-tag {
   font-size: 0.82em;
@@ -233,9 +236,6 @@ h3 {
 }
 .post-body.big {
   font-size: 1.5em;
-}
-.post-body.big .best {
-  font-size: 1.15em;
 }
 .img-loading {
   min-height: 140px;
