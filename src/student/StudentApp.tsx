@@ -613,7 +613,9 @@ function Composer({client, st, preset, photoAllowed, live, revealed}: {client: W
     else {
       // 11 Nov 2026: sentences 1–4 required (two per member); the post names the empty ones
       const empty = preset.fields.items.flatMap((f, i) => (f.required && !fields[`f${i}`] ? [i + 1] : []));
-      if (empty.length) {
+      if (!preset.fields.items.some((f) => f.required) && !Object.keys(fields).some((k) => k.startsWith('f')))
+        missing = ['Write at least one sentence.', 'เขียนอย่างน้อย 1 ประโยค'];
+      else if (empty.length) {
         const list = empty.length === 1 ? `${empty[0]}` : `${empty.slice(0, -1).join(', ')} and ${empty[empty.length - 1]}`;
         missing = preset.companies
           ? [`Write a sentence for chart ${list} — at least one per chart.`, `เขียนประโยคของกราฟที่ ${empty.join(', ')} (อย่างน้อยกราฟละ 1 ประโยค)`]
@@ -813,7 +815,7 @@ function Composer({client, st, preset, photoAllowed, live, revealed}: {client: W
             </div>
           ) : (
             <button type="button" className="btn photo-btn" onClick={() => fileRef.current?.click()} disabled={!!busy}>
-              {busy === 'photo' ? 'Uploading photo…' : preset.id === 'wk13-spot9' ? '📷 Add your marked screenshot' : preset.id === 'wk14-changed' ? '📊 Add a graph (optional · one aspect or several)' : '📷 Add a photo'}
+              {busy === 'photo' ? 'Uploading photo…' : preset.id === 'wk13-spot9' ? '📷 Add your marked screenshot' : preset.id === 'wk14-changed' ? '📊 Add your AI-generated graph (the one for your presentation slide · optional)' : '📷 Add a photo'}
             </button>
           )}
         </div>
@@ -845,6 +847,7 @@ function Composer({client, st, preset, photoAllowed, live, revealed}: {client: W
               box
             );
           })}
+          {preset.tip && <p className="hint">{preset.tip}</p>}
         </div>
       )}
       {preset.text && (

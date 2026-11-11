@@ -244,6 +244,8 @@ function Setup({
                           ? 'Project groups · fill-in sentences → one paragraph'
                           : p.builder
                             ? 'Project groups · tap-to-build trend sentences'
+                            : p.fields && !p.charts
+                            ? 'Project groups · a box per aspect + their AI graph'
                             : `${p.who === 'group' ? 'Project groups' : 'Pairs'} · ${p.live ? 'photo + text · posts show straight away' : p.photo ? 'photo or text' : 'text only'}`}
                   </span>
                 </button>

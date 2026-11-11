@@ -125,7 +125,7 @@ export const COMPANIES: Company[] = [
   ]},
 ];
 export const TPS14_STEPS: Step[] = [{label: "THINK", time: "5 min", text: "Split the six charts: three each (three of you: two each). On your own, write at least one sentence for each of your charts."}, {label: "PAIR", time: "3 min", text: "Swap with your partner. Check each sentence: what changed + verb + how much + when?"}, {label: "SHARE", time: "5 min", text: "Post all six sentences on Ladpet, one box per chart. Hidden until everyone has posted."}];
-export const BRAIN14_STEPS: Step[] = [{label: "GROUP", time: "10 min", text: "Your own company: for each aspect, what changed? Up, down or flat? How much? When? Build one sentence per aspect."}, {label: "POST", time: "1 min", text: "One phone per group posts the sentences. Add a graph of one aspect or several if you have one. Hidden until everyone has posted."}];
+export const BRAIN14_STEPS: Step[] = [{label: "GROUP", time: "10 min", text: "Your own company: write your group's own sentence for each aspect — what changed, how much, when?"}, {label: "POST", time: "1 min", text: "One phone per group posts the sentences. Add the AI-generated graph for your presentation slide if you have it. Hidden until everyone has posted."}];
 
 // ── Week 14 · the form's 11 verbs and 7 adverbs (build_wk14.py VERBS / ADJ; the Final Project form's list) ──
 export type TrendVerb = {base: string; past: string; dir: 'up' | 'down' | 'flat'; th: string};
@@ -297,21 +297,26 @@ export const PRESETS: Preset[] = [
     title: 'What Changed in Your Company?',
     who: 'group',
     theme: 'teal',
-    // 11 Nov 2026 (Mew): the group may add a graph of what it wrote (one aspect or several)
+    // 11 Nov 2026 (Mew): the group may upload the AI-generated graph it will put on its presentation slide
     photo: true,
-    // build_wk14.py BR: the 6 branches; the subjects to tap and example numbers come from its prompts/examples
-    builder: [
-      {label: 'Sales', hint: 'units sold · baht a month', subjects: ['Sales', 'Monthly sales', 'Online sales'], by: '20%', from: '1,200 cups', to: '1,500 cups'},
-      {label: 'Customers', hint: 'new · regular · online', subjects: ['The number of customers', 'The number of new customers', 'The number of regular customers'], by: '400', from: '800', to: '1,200'},
-      {label: 'Prices', hint: 'your price · ingredient costs', subjects: ['Our prices', 'The price of our best-seller', 'Ingredient prices'], by: '5%', from: '55 baht', to: '60 baht'},
-      {label: 'Costs', hint: 'rent · staff · materials', subjects: ['Costs', 'Rent', 'Staff costs', 'Material costs'], by: '10%', from: '45,000 baht', to: '40,000 baht'},
-      {label: 'Online', hint: 'followers · views · orders', subjects: ['The number of followers', 'Online orders', 'Website views'], by: '5,000', from: '7,000', to: '12,000'},
-      {label: 'Branches & staff', hint: 'shops · people', subjects: ['The number of branches', 'The number of staff'], by: '1', from: '2', to: '3'},
-    ],
-    intro: 'In your project group · 10 minutes. Tap the parts — each branch builds one trend sentence for your project.',
-    introTh: 'ทำในกลุ่มโปรเจกต์ 10 นาที แตะเลือกส่วนต่าง ๆ แต่ละหัวข้อจะได้ประโยคแนวโน้ม 1 ประโยค',
+    // 11 Nov 2026 (Mew, later): no tap-to-build buttons — the group types its own sentence(s) for each aspect.
+    // Old posts keep working: the builder also stored aspect i's sentence in f<i>.
+    fields: {
+      heading: "Your group's sentences · one box per aspect",
+      th: 'ประโยคของกลุ่ม ช่องละหัวข้อ',
+      items: [
+        {label: 'Sales', hint: 'units sold · baht a month'},
+        {label: 'Customers', hint: 'new · regular · online'},
+        {label: 'Prices', hint: 'your price · ingredient costs'},
+        {label: 'Costs', hint: 'rent · staff · materials'},
+        {label: 'Online', hint: 'followers · views · orders'},
+        {label: 'Branches & staff', hint: 'shops · people'},
+      ],
+    },
+    intro: 'In your project group · 10 minutes. Your own company: write your sentences, one box per aspect.',
+    introTh: 'ทำในกลุ่มโปรเจกต์ 10 นาที บริษัทของกลุ่มเอง เขียนประโยคของกลุ่ม หัวข้อละช่อง',
     steps: BRAIN14_STEPS,
-    tip: 'Your six trend sentences for the Final Project come from these branches.',
+    tip: 'These are the six trend sentences for your Final Project.',
   },
   {
     id: 'custom',

@@ -54,6 +54,9 @@ export function buildWallHtml(opts: {
       parts.push(`<div class="aspects">${preset.fields.items
         .map((it, i) => `<div class="aspect"><div class="chart-head">${i + 1} · ${esc(it.label)}${co ? ` — ${esc(co.charts[i].title)}` : ''}</div>${co ? chartSvg(co.charts[i], {compact: true, accent: accentHi}) : ''}<p class="sent">${esc(f(i) ?? '—')}</p></div>`)
         .join('')}</div>`);
+    } else if (preset.fields && !preset.charts) {
+      const rows = preset.fields.items.map((it, i) => (f(i) ? `<dt>${esc(it.label)}</dt><dd>${esc(f(i)!)}</dd>` : '')).join('');
+      if (rows) parts.push(`<dl>${rows}</dl>`);
     } else if (preset.fields) parts.push(...preset.fields.items.map((_, i) => (f(i) ? `<p class="sent"><span class="sent-n">${i + 1}</span>${esc(f(i)!)}</p>` : '')));
     if (p.text) parts.push(`<p class="text">${esc(p.text)}</p>`);
     const who = t.members?.length && defaultGroupName(t.members) !== t.name ? `<div class="who">${esc(t.members.join(', '))}</div>` : '';

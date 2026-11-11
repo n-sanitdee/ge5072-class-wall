@@ -156,7 +156,20 @@ export function PostBody({post, preset, big, chart}: {post: Post; preset: Preset
           )}
         </dl>
       )}
-      {preset.fields && (
+      {/* Wk14 What Changed (11 Nov 2026): each aspect's sentence under its name, as the builder showed it */}
+      {preset.fields && !preset.charts && (
+        <dl className="branches">
+          {preset.fields.items.map((it, i) =>
+            f(i) ? (
+              <div key={it.label} className="branch">
+                <dt>{it.label}</dt>
+                <dd>{f(i)}</dd>
+              </div>
+            ) : null,
+          )}
+        </dl>
+      )}
+      {preset.fields && preset.charts && (
         <>
           {chart && c && <ChartCard chart={c} compact />}
           {preset.fields.items.map((_, i) =>
