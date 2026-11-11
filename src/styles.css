@@ -2047,3 +2047,107 @@ html.is-host {
   width: 100%;
   font-size: 1rem;
 }
+
+/* ── Wk14 company (Mew, 11 Nov 2026): one company per pair, its six charts each with the pair's sentence ── */
+.company-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin: 0.1em 0 0.45em;
+  text-align: left;
+}
+.company-logo {
+  width: 3.2em;
+  height: 3.2em;
+  flex: none;
+}
+.company-name {
+  font-weight: 800;
+  color: var(--co, var(--ink));
+  font-size: 1.05em;
+  line-height: 1.15;
+}
+.company-kind {
+  font-size: 0.8em;
+  color: var(--muted);
+}
+.my-company .company-head {
+  font-size: 1.15rem;
+}
+.my-company .company-logo {
+  width: 76px;
+  height: 76px;
+}
+.aspect-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11em), 1fr));
+  gap: 0.5em;
+}
+.aspect-cell {
+  min-width: 0;
+}
+.aspect-cell .chart-card {
+  padding: 0.35em 0.45em 0.15em;
+  border-radius: 0.7em;
+  max-width: 17em;
+}
+.aspect-cell .chart-title {
+  font-size: 0.78em;
+  margin-bottom: 0.1em;
+}
+.aspect-cell .chart-label {
+  font-size: 0.66em;
+  margin-bottom: 0;
+}
+.post-body .aspect-cell .sent {
+  margin: 0.25em 0 0;
+  font-size: 0.95em;
+}
+.post-body.big .aspect-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.post-body.big:has(.aspect-grid) {
+  font-size: 1.2em;
+}
+.post-body.big .aspect-cell .chart-card {
+  max-width: 15em;
+}
+.phone-board.companies .ptile {
+  grid-column: 1 / -1;
+}
+.phone-board.companies .ptile-body {
+  max-height: none;
+}
+/* the composer: each box beside its chart (stacked on a narrow phone, side by side from 560 px) */
+.aspect-row {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+}
+.aspect-row .field {
+  margin-top: 0;
+}
+@media (min-width: 560px) {
+  .aspect-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+  }
+}
+/* projector tiles: a fixed 3 × 2 grid, one-line chart titles, so the sentences get the room */
+.ptile.fit .aspect-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4em 0.5em;
+}
+.ptile.fit .aspect-cell .chart-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ptile.fit .company-head {
+  margin: 0 0 0.3em;
+}
+.ptile.fit .company-logo {
+  width: 2.2em;
+  height: 2.2em;
+}

@@ -1,5 +1,5 @@
-import {type ReactNode, useEffect, useRef, useState} from 'react';
-import {BAD_P, type Chart, type Preset} from '../lib/presets.ts';
+import {type CSSProperties, type ReactNode, useEffect, useRef, useState} from 'react';
+import {BAD_P, type Chart, type Company, type Preset} from '../lib/presets.ts';
 import {chartSvg} from './chart-svg.ts';
 import type {Post} from '../lib/types.ts';
 
@@ -100,10 +100,46 @@ export function DbImage({load, alt, className, onClick, lazy}: {load: () => Prom
   return <img src={src} alt={alt} className={className} onClick={onClick} />;
 }
 
+/** Wk14 company logos live in public/wk14 (relative to the app's base). */
+export function logoUrl(c: Company): string {
+  return `${import.meta.env.BASE_URL}${c.logo}`;
+}
+
+/** Wk14: the company Ladpet gave a pair — logo, name, what it is. */
+export function CompanyHead({company, label}: {company: Company; label?: string}) {
+  return (
+    <div className="company-head" style={{'--co': company.colour} as CSSProperties}>
+      <img src={logoUrl(company)} alt="" className="company-logo" />
+      <div>
+        {label && <div className="chart-label">{label}</div>}
+        <div className="company-name">{company.name}</div>
+        <div className="company-kind">{company.kind}</div>
+      </div>
+    </div>
+  );
+}
+
 /** The finished sentences of a post, as everyone sees them (the photo is handled by the caller). */
 export function PostBody({post, preset, big, chart}: {post: Post; preset: Preset; big?: boolean; chart?: boolean}) {
   const f = (i: number) => post.fields?.[`f${i}`];
   const c = preset.charts && typeof post.choice === 'number' ? preset.charts[post.choice] : null;
+  // Wk14 company (Mew, 11 Nov 2026): every chart with the pair's sentence for it, together
+  const co = preset.companies && typeof post.choice === 'number' ? preset.companies[post.choice] : null;
+  if (preset.companies && preset.fields)
+    return (
+      <div className={`post-body ${big ? 'big' : ''}`}>
+        {co && <CompanyHead company={co} />}
+        <div className="aspect-grid">
+          {preset.fields.items.map((it, i) => (
+            <div key={it.label} className="aspect-cell">
+              {co ? <ChartCard chart={co.charts[i]} label={`${i + 1} · ${it.label}`} compact /> : <div className="chart-label">{`${i + 1} · ${it.label}`}</div>}
+              <p className="sent">{f(i) ?? '—'}</p>
+            </div>
+          ))}
+        </div>
+        {post.text && <p className="post-text">{post.text}</p>}
+      </div>
+    );
   return (
     <div className={`post-body ${big ? 'big' : ''}`}>
       {/* Wk13 profile: one paragraph (Mew, 22 Oct 2026) */}

@@ -2,7 +2,7 @@ import {type CSSProperties, useCallback, useEffect, useMemo, useRef, useState} f
 import {backend, configured} from '../backend.ts';
 import {buildWallHtml, download, exportFileName} from '../lib/export.ts';
 import {openDatabase, signInHost} from '../lib/fb.ts';
-import {GOOD_P, NINE, PRESETS, type Preset, fullTitle, getPreset, titleParts, whoWord} from '../lib/presets.ts';
+import {GOOD_P, NINE, PRESETS, type Preset, assignable, fullTitle, getPreset, titleParts, whoWord} from '../lib/presets.ts';
 import {FALLBACK_STALE_MS, SECTIONS, type PresetId, isPosted} from '../lib/types.ts';
 import type {Database} from 'firebase/database';
 import {type HostView, WallHost, orderedTeams, revealBlocker} from '../lib/wall-host.ts';
@@ -185,7 +185,7 @@ function Setup({
   const groups: [string, Preset[]][] = [
     ['Week 12 · Final Project', PRESETS.filter((p) => p.week === 'Week 12')],
     ['Week 13 · Company Profile', PRESETS.filter((p) => p.week === 'Week 13')],
-    ['Week 14 · Describing Trends', PRESETS.filter((p) => p.week === 'Week 14')],
+    ['Week 14 · Describing Trends', PRESETS.filter((p) => p.week === 'Week 14' && !p.legacy)],
     ['Any lesson', PRESETS.filter((p) => p.id === 'custom')],
   ];
 
@@ -236,7 +236,9 @@ function Setup({
                   <span className="preset-meta">
                     {p.id === 'custom'
                       ? 'your title + question · posts show straight away'
-                      : p.charts
+                      : p.companies
+                        ? 'Pairs · Ladpet gives each pair a company + its six charts'
+                        : p.charts
                         ? 'Pairs · Ladpet gives each name a chart'
                         : p.frames
                           ? 'Project groups · fill-in sentences → one paragraph'
@@ -306,7 +308,7 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
   const postedIds = teams
     .filter(([id]) => isPosted(view.posts[id]))
     .map(([id]) => id)
-    .sort((x, y) => (preset.charts ? (view.posts[x].choice ?? 99) - (view.posts[y].choice ?? 99) : 0));
+    .sort((x, y) => (assignable(preset) ? (view.posts[x].choice ?? 99) - (view.posts[y].choice ?? 99) : 0));
   const blocker = revealBlocker(view);
   const [spot, setSpot] = useState<number | null>(null);
   const [showQr, setShowQr] = useState(false);
@@ -369,7 +371,7 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
       />
     );
   };
-  const items = postedIds.map((id) => itemFor(id, view.posts[id]));
+  const items = postedIds.map((id) => itemFor(id, view.posts[id], preset));
   const notPosted = teams.filter(([id]) => !isPosted(view.posts[id])).map(([, t]) => t.name);
 
   const joinAside = (
@@ -384,7 +386,9 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
         <li>
           {preset.id === 'wk13-spot9'
             ? 'Post one marked screenshot per pair'
-            : preset.charts
+            : preset.companies
+              ? 'Ladpet gives your pair a company and six charts — a sentence per chart, then post'
+              : preset.charts
               ? 'Ladpet gives you a chart — write together, then post'
               : live
                 ? 'Write together on your phones, then post — it appears here'
@@ -505,7 +509,7 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
               {teams.map(([id, t], i) => {
                 const done = isPosted(view.posts[id]);
                 const who = membersLine(t.name, t.members);
-                const c = preset.charts ? view.assign[id] : undefined;
+                const c = assignable(preset) ? view.assign[id] : undefined;
                 return (
                   <button
                     key={id}
@@ -518,7 +522,7 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
                     {who && <span className="tile-who">{who}</span>}
                     <span className="tile-state">
                       {done ? '✓ posted' : 'writing…'}
-                      {c !== undefined && <span className="tile-chart"> · chart {c + 1}</span>}
+                      {c !== undefined && <span className="tile-chart"> · {preset.companies ? preset.companies[c]?.name : `chart ${c + 1}`}</span>}
                     </span>
                   </button>
                 );

@@ -14,6 +14,7 @@ import {
   WHEN_OPTIONS,
   adverbsFor,
   amountsFor,
+  assignable,
   getPreset,
   titleParts,
 } from '../lib/presets.ts';
@@ -21,7 +22,7 @@ import {EMPTY_PICK, type TrendPick, composeFrames, composeTrend, fixPick, frameP
 import {LIMITS, type Post, isPosted} from '../lib/types.ts';
 import {type JoinError, JoinFailed, WallClient, type WallState, checkMember, checkName, defaultGroupName, peekWall} from '../lib/wall-client.ts';
 import {orderedTeams} from '../lib/wall-host.ts';
-import {APP_NAME, Bi, CARD_TINTS, ChartCard, DbImage, Passage, PostBody, Rich, Spinner} from '../ui/common.tsx';
+import {APP_NAME, Bi, CARD_TINTS, ChartCard, CompanyHead, DbImage, Passage, PostBody, Rich, Spinner} from '../ui/common.tsx';
 import {Tile} from '../ui/tiles.tsx';
 
 /**
@@ -240,9 +241,10 @@ function Wall({code, onLeave}: {code: string; onLeave: () => void}) {
         )}
         {/* Wk13: the passage comes first, so the THINK screenshot needs no scrolling */}
         {!pub.revealed && preset.id === 'wk13-spot9' && <Spot9Material />}
-        {!joined && !pub.revealed && (preset.charts ? <Bi className="intro-line" en={preset.intro} th={preset.introTh} /> : <Intro preset={preset} prompt={pub.prompt} />)}
+        {!joined && !pub.revealed && (assignable(preset) ? <Bi className="intro-line" en={preset.intro} th={preset.introTh} /> : <Intro preset={preset} prompt={pub.prompt} />)}
         {joined && pub.prompt && <p className="prompt">{pub.prompt}</p>}
         {joined && preset.charts && <MyChart preset={preset} chart={st.chart} />}
+        {joined && preset.companies && <MyCompany preset={preset} company={st.chart} />}
         {joined ? (
           <Composer key={client.tid} client={client} st={st} preset={preset} photoAllowed={pub.photo} live={live} revealed={!!pub.revealed} />
         ) : !st.removed && (!pub.revealed || joining) ? (
@@ -253,7 +255,7 @@ function Wall({code, onLeave}: {code: string; onLeave: () => void}) {
           </button>
         ) : null}
         {!live && !pub.revealed && <Progress pub={pub} />}
-        {joined && !live && !pub.revealed && !preset.charts && <Intro preset={preset} />}
+        {joined && !live && !pub.revealed && !assignable(preset) && <Intro preset={preset} />}
         {shown && (
           <section className="live-wall">
             {live && <Bi className="live-head" en={`On the wall now — ${Object.values(st.posts).filter(isPosted).length} posts`} th="โพสต์บนบอร์ดตอนนี้" />}
@@ -306,6 +308,24 @@ function MyChart({preset, chart}: {preset: Preset; chart: number | undefined}) {
   return (
     <section className="my-chart">
       <ChartCard chart={preset.charts![chart]} label={`Your chart · ${chart + 1} of ${preset.charts!.length}`} />
+      <Intro preset={preset} />
+    </section>
+  );
+}
+
+/** Wk14 (11 Nov 2026): the company Ladpet gave this pair, then the steps; its six charts sit beside the boxes below. */
+function MyCompany({preset, company}: {preset: Preset; company: number | undefined}) {
+  const co = company === undefined ? undefined : preset.companies![company];
+  if (!co)
+    return (
+      <div className="notice center-notice">
+        <Spinner />
+        <Bi en="Getting your company…" th="กำลังรับบริษัทของคุณ…" />
+      </div>
+    );
+  return (
+    <section className="my-chart my-company">
+      <CompanyHead company={co} label={`Your company · ${company! + 1} of ${preset.companies!.length}`} />
       <Intro preset={preset} />
     </section>
   );
@@ -589,12 +609,15 @@ function Composer({client, st, preset, photoAllowed, live, revealed}: {client: W
       if (v?.trim()) fields[`f${i}`] = v;
     });
     if (preset.charts && st.chart === undefined) missing = ['Wait for your chart.', 'รอรับกราฟก่อน'];
+    else if (preset.companies && st.chart === undefined) missing = ['Wait for your company.', 'รอรับบริษัทก่อน'];
     else {
       // 11 Nov 2026: sentences 1–4 required (two per member); the post names the empty ones
       const empty = preset.fields.items.flatMap((f, i) => (f.required && !fields[`f${i}`] ? [i + 1] : []));
       if (empty.length) {
         const list = empty.length === 1 ? `${empty[0]}` : `${empty.slice(0, -1).join(', ')} and ${empty[empty.length - 1]}`;
-        missing = [`Write sentence${empty.length > 1 ? 's' : ''} ${list} — two each.`, `เขียนประโยคที่ ${empty.join(', ')} ให้ครบ (คนละ 2 ประโยค)`];
+        missing = preset.companies
+          ? [`Write a sentence for chart ${list} — at least one per chart.`, `เขียนประโยคของกราฟที่ ${empty.join(', ')} (อย่างน้อยกราฟละ 1 ประโยค)`]
+          : [`Write sentence${empty.length > 1 ? 's' : ''} ${list} — two each.`, `เขียนประโยคที่ ${empty.join(', ')} ให้ครบ (คนละ 2 ประโยค)`];
       }
     }
   } else if (!text.trim() && !mine?.photo) {
@@ -699,8 +722,8 @@ function Composer({client, st, preset, photoAllowed, live, revealed}: {client: W
 
   // Wk14 chart: the group's post carries the chart Ladpet gave it.
   useEffect(() => {
-    if (preset.charts && st.chart !== undefined && mine !== undefined && mine?.choice !== st.chart) client.setChoice(st.chart).catch(() => {});
-  }, [preset.charts, st.chart, mine, client]);
+    if (assignable(preset) && st.chart !== undefined && mine !== undefined && mine?.choice !== st.chart) client.setChoice(st.chart).catch(() => {});
+  }, [preset, st.chart, mine, client]);
 
   async function pickFile(f: File | undefined) {
     if (!f) return;
@@ -790,7 +813,7 @@ function Composer({client, st, preset, photoAllowed, live, revealed}: {client: W
             </div>
           ) : (
             <button type="button" className="btn photo-btn" onClick={() => fileRef.current?.click()} disabled={!!busy}>
-              {busy === 'photo' ? 'Uploading photo…' : preset.id === 'wk13-spot9' ? '📷 Add your marked screenshot' : '📷 Add a photo'}
+              {busy === 'photo' ? 'Uploading photo…' : preset.id === 'wk13-spot9' ? '📷 Add your marked screenshot' : preset.id === 'wk14-changed' ? '📊 Add a graph (optional · one aspect or several)' : '📷 Add a photo'}
             </button>
           )}
         </div>
@@ -800,7 +823,9 @@ function Composer({client, st, preset, photoAllowed, live, revealed}: {client: W
       {preset.fields && (
         <div className="fields">
           <Bi className="field-heading" en={preset.fields.heading} th={preset.fields.th} />
-          {preset.fields.items.map((f, i) => (
+          {preset.fields.items.map((f, i) => {
+            const co = preset.companies && st.chart !== undefined ? preset.companies[st.chart] : undefined;
+            const box = (
             <label key={f.label} className="field">
               <span className="field-name">
                 {f.label}
@@ -809,7 +834,17 @@ function Composer({client, st, preset, photoAllowed, live, revealed}: {client: W
               </span>
               <CoText minRows={2} value={lines[`f${i}`] ?? ''} onChange={(v) => setLines((l) => ({...l, [`f${i}`]: v}))} onBlur={() => void flush().catch(() => {})} />
             </label>
-          ))}
+            );
+            // Wk14 company: each box beside its chart (Mew, 11 Nov 2026)
+            return co ? (
+              <div key={f.label} className="aspect-row">
+                <ChartCard chart={co.charts[i]} label={`${i + 1} · ${f.label}`} compact />
+                {box}
+              </div>
+            ) : (
+              box
+            );
+          })}
         </div>
       )}
       {preset.text && (
@@ -1088,8 +1123,10 @@ function Board({client, st, preset}: {client: WallClient; st: WallState; preset:
     );
   };
   return (
-    <div className="phone-board">
-      {preset.charts
+    <div className={`phone-board ${preset.companies ? 'companies' : ''}`}>
+      {preset.companies
+        ? [...teams].sort(([a], [b]) => (st.posts[a].choice ?? 99) - (st.posts[b].choice ?? 99)).map(tile)
+        : preset.charts
         ? preset.charts.map((c, ci) => {
             const group = teams.filter(([id]) => st.posts[id].choice === ci);
             return group.length ? (

@@ -203,15 +203,15 @@ const textWall = await WallHost.create(hostApp.db, uid, {preset: 'wk14-changed',
 const tp = new WallClient(openDatabase(backend, 'tp').db, textWall.view.code);
 await tp.join('Sunny team');
 check('text wall: branch notes are accepted', await allowed(tp.post({fields: {f0: 'rose by 20% in May', f4: 'a sharp rise in followers'}})));
-check('text wall: photos are refused', await denied(tp.post({fields: {f0: 'x'}, image: {full: JPEG, thumb: JPEG}})));
+check('brainstorm wall: a graph photo is accepted (11 Nov 2026)', await allowed(tp.post({fields: {f0: 'x'}, image: {full: JPEG, thumb: JPEG}})));
 check('text wall: field keys are f0–f9 / b0–b9 only', await denied(set(ref(tp.db, `walls/${textWall.view.code}/posts/${tp.tid}`), {at: serverTimestamp(), fields: {sales: 'x'}})));
 check('text wall: the builder inputs (b0) are stored with the sentence', await allowed(tp.post({fields: {f0: 'Sales rose sharply by 20% in May.', b0: JSON.stringify({s: 0, v: 0, a: 0, p: 'by', x: '20%', w: 4})}})));
 check('text wall: no length limit on a field', await allowed(set(ref(tp.db, `walls/${textWall.view.code}/posts/${tp.tid}`), {at: serverTimestamp(), fields: {f0: 'x'.repeat(5000)}})));
 await textWall.finish();
 check('text wall finished (kept for the boards archiver)', (await get(ref(hostApp.db, `walls/${textWall.view.code}/pub/ended`))).val() === true);
 
-// Wk14 chart wall: the host gives each name a chart; a post's chart must be the one it was given
-const chartWall = await WallHost.create(hostApp.db, uid, {preset: 'wk14-chart', section: 'TS66'});
+// Wk14 company wall (11 Nov 2026; same assign rules as the first chart wall): each pair gets a company in turn; a post's choice must be the one it was given
+const chartWall = await WallHost.create(hostApp.db, uid, {preset: 'wk14-company', section: 'TS66'});
 const cw = `walls/${chartWall.view.code}`;
 const cps = [0, 1, 2, 3, 4].map((k) => new WallClient(openDatabase(backend, `cp${k}`).db, chartWall.view.code));
 for (const c of cps) {
@@ -226,6 +226,7 @@ check('a name cannot change its chart', await denied(set(ref(cps[0].db, `${cw}/a
 check('a stranger cannot list the charts given', await denied(get(ref(xdb, `${cw}/assign`))));
 check('a post with another chart is refused', await denied(cps[1].post({fields: {f0: 'Followers rose.'}, choice: 3})));
 check('a post with its own chart is accepted', await allowed(cps[1].post({fields: {f0: 'Followers rose sharply to 15,000 in April.'}, choice: 1})));
+check('company wall (text only): photos are refused', await denied(cps[1].post({fields: {f0: 'x'}, choice: 1, image: {full: JPEG, thumb: JPEG}})));
 await chartWall.remove(cps[2].tid!);
 const late = new WallClient(openDatabase(backend, 'cp-late').db, chartWall.view.code);
 await late.join('Late pair');

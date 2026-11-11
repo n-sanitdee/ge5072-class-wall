@@ -12,7 +12,7 @@ import {
   serverTimestamp,
   update,
 } from 'firebase/database';
-import {getPreset} from './presets.ts';
+import {assignable, getPreset} from './presets.ts';
 import {type Post, type PresetId, type Pub, type RosterRow, STALE_MS, type Team, isPosted} from './types.ts';
 
 export type HostView = {
@@ -181,7 +181,7 @@ export class WallHost {
     });
     on<Record<string, Team>>(`${this.base}/teams`, (teams) => this.changed({teams: teams ?? {}}));
     on<Record<string, Post>>(`${this.base}/posts`, (posts) => this.changed({posts: posts ?? {}}));
-    if (getPreset(this.view.pub.preset).charts) {
+    if (assignable(getPreset(this.view.pub.preset))) {
       on<Record<string, number>>(`${this.base}/assign`, (assign) => {
         this.assignLoaded = true;
         this.patch({assign: assign ?? {}});
@@ -196,7 +196,7 @@ export class WallHost {
    */
   private assignCharts() {
     if (this.readOnly) return;
-    const charts = getPreset(this.view.pub.preset).charts;
+    const charts = assignable(getPreset(this.view.pub.preset));
     if (!charts || !this.assignLoaded || this.view.pub.revealed) return;
     const assign = {...this.view.assign};
     const writes: Record<string, number> = {};

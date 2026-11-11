@@ -117,8 +117,14 @@ type Place = {r: number; c: number; s: number};
 /** How many characters of room a photo is worth: photos come first (Mew, 27 Oct 2026). */
 const PHOTO_ROOM = 1400;
 
-export function itemFor(id: string, post: Post): Item {
-  const chars = (post.text?.length ?? 0) + Object.entries(post.fields ?? {}).reduce((n, [k, v]) => n + (k.startsWith('f') ? v.length : 0), 0);
+/** Room a Wk14 company post's six charts take, in characters. */
+const CHARTS_ROOM = 6 * 260;
+
+export function itemFor(id: string, post: Post, preset?: Preset): Item {
+  const chars =
+    (post.text?.length ?? 0) +
+    Object.entries(post.fields ?? {}).reduce((n, [k, v]) => n + (k.startsWith('f') ? v.length : 0), 0) +
+    (preset?.companies ? CHARTS_ROOM : 0);
   return {id, photo: !!post.photo, chars};
 }
 

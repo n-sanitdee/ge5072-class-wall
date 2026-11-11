@@ -47,7 +47,14 @@ export function buildWallHtml(opts: {
       const rows = preset.builder.map((b, i) => (f(i) ? `<dt>${esc(b.label)}</dt><dd>${esc(f(i)!)}</dd>` : '')).join('');
       if (rows) parts.push(`<dl>${rows}</dl>`);
     }
-    if (preset.fields) parts.push(...preset.fields.items.map((_, i) => (f(i) ? `<p class="sent"><span class="sent-n">${i + 1}</span>${esc(f(i)!)}</p>` : '')));
+    const co = preset.companies && typeof p.choice === 'number' ? preset.companies[p.choice] : undefined;
+    if (preset.fields && preset.companies) {
+      // Wk14 company: every chart with the pair's sentence for it (11 Nov 2026)
+      if (co) parts.push(`<div class="tag">${esc(co.name)} · ${esc(co.kind)}</div>`);
+      parts.push(`<div class="aspects">${preset.fields.items
+        .map((it, i) => `<div class="aspect"><div class="chart-head">${i + 1} · ${esc(it.label)}${co ? ` — ${esc(co.charts[i].title)}` : ''}</div>${co ? chartSvg(co.charts[i], {compact: true, accent: accentHi}) : ''}<p class="sent">${esc(f(i) ?? '—')}</p></div>`)
+        .join('')}</div>`);
+    } else if (preset.fields) parts.push(...preset.fields.items.map((_, i) => (f(i) ? `<p class="sent"><span class="sent-n">${i + 1}</span>${esc(f(i)!)}</p>` : '')));
     if (p.text) parts.push(`<p class="text">${esc(p.text)}</p>`);
     const who = t.members?.length && defaultGroupName(t.members) !== t.name ? `<div class="who">${esc(t.members.join(', '))}</div>` : '';
     return `<article${img ? ' class="photo"' : ''}><h2>${esc(t.name)}</h2>${who}${parts.join('')}</article>`;
@@ -89,6 +96,8 @@ article img{width:100%;border-radius:8px;border:1px solid #e3e5f1;display:block;
 dl{margin:0}dt{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-top:6px}dd{margin:2px 0 0}
 .text{white-space:pre-wrap;margin:4px 0}
 .para{margin:2px 0;line-height:1.5}
+main.companies{columns:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,640px),1fr));gap:16px;align-items:start}main.companies article{margin:0}
+.aspects{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}.aspect{border:1px solid #e3e5f1;border-radius:10px;padding:6px 8px}.aspect .chart-head{font-size:12px}.aspect svg{width:100%;height:auto;display:block}
 section.chart{break-inside:avoid;background:#fff;border:2px solid var(--accent);border-radius:14px;padding:10px 12px;margin:0 0 16px}
 .chart-head{font-weight:800;font-size:15px;margin-bottom:4px}
 .fixes{margin:0 28px 28px;background:#fff;border:1px solid #e3e5f1;border-radius:14px;padding:14px 18px}
@@ -99,7 +108,7 @@ footer{padding:0 28px 28px;color:#64748b;font-size:13px}
 <header><div class="k">Ladpet · ${esc(pub.section)}</div><h1>${lead ? `<span class="lead">${esc(lead)}</span> ` : ''}${esc(title)}</h1>
 <p>${esc(when)} · ${posted.length} ${posted.length === 1 ? 'post' : 'posts'}${missing.length ? ` · not posted: ${missing.join(', ')}` : ''}</p></header>
 ${pub.prompt ? `<p style="margin:16px 28px 0;font-size:18px">${esc(pub.prompt)}</p>` : ''}
-<main>
+<main${preset.companies ? ' class="companies"' : ''}>
 ${cards || '<p>No posts.</p>'}
 </main>
 ${fixes}
