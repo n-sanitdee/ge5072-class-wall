@@ -2151,3 +2151,9 @@ html.is-host {
   width: 2.2em;
   height: 2.2em;
 }
+
+/* Wk14 two-chart version (11 Nov 2026 13:10): two charts side by side */
+.ptile.fit .aspect-grid.n2,
+.post-body.big .aspect-grid.n2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}

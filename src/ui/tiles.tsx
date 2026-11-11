@@ -124,7 +124,7 @@ export function itemFor(id: string, post: Post, preset?: Preset): Item {
   const chars =
     (post.text?.length ?? 0) +
     Object.entries(post.fields ?? {}).reduce((n, [k, v]) => n + (k.startsWith('f') ? v.length : 0), 0) +
-    (preset?.companies ? CHARTS_ROOM : 0);
+    (preset?.companies ? (CHARTS_ROOM / 6) * (preset.fields?.items.length ?? 6) : 0);
   return {id, photo: !!post.photo, chars};
 }
 

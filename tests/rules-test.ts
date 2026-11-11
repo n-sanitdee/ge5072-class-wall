@@ -211,7 +211,7 @@ await textWall.finish();
 check('text wall finished (kept for the boards archiver)', (await get(ref(hostApp.db, `walls/${textWall.view.code}/pub/ended`))).val() === true);
 
 // Wk14 company wall (11 Nov 2026; same assign rules as the first chart wall): each pair gets a company in turn; a post's choice must be the one it was given
-const chartWall = await WallHost.create(hostApp.db, uid, {preset: 'wk14-company', section: 'TS66'});
+const chartWall = await WallHost.create(hostApp.db, uid, {preset: 'wk14-company2', section: 'TS66'});
 const cw = `walls/${chartWall.view.code}`;
 const cps = [0, 1, 2, 3, 4].map((k) => new WallClient(openDatabase(backend, `cp${k}`).db, chartWall.view.code));
 for (const c of cps) {

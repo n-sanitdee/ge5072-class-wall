@@ -205,7 +205,7 @@ await android.waitForSelector('text=This wall has ended');
 check('phones show "This wall has ended"', true);
 for (const b of bots) b.stop();
 
-// ════════════════════════════════════════ 2. Wk14 · Describe a Chart (11 Nov 2026: Ladpet gives each pair a company + its six charts)
+// ════════════════════════════════════════ 2. Wk14 · Describe a Chart (11 Nov 2026 13:10: a company per pair, TWO of its charts)
 await host.setViewportSize({width: 1920, height: 1080});
 const code2 = await openWall('TS66', 'Describe a Chart');
 for (let i = 0; i < 3; i++) await host.click('.expected button[aria-label="more"]');
@@ -218,31 +218,23 @@ await shot(android, '20-android-chart-name', true);
 await join(android, ['Nok', 'Fah']);
 await android.waitForSelector('.my-company .company-head');
 check('page 2: the company Ladpet gave (company 1)', (await android.textContent('.my-company'))!.includes('Your company · 1 of 4') && (await android.textContent('.my-company'))!.includes('Doi Cloud Hotel'));
-check('six charts, each beside its box', (await android.locator('.composer .aspect-row').count()) === 6 && (await android.locator('.composer .aspect-row .chart-card').count()) === 6 && (await android.locator('.composer .aspect-row textarea').count()) === 6);
-check('first chart = Sales: rooms sold', (await android.textContent('.composer .aspect-row >> nth=0'))!.includes('Sales') && (await android.textContent('.composer .aspect-row >> nth=0'))!.includes('Rooms sold'));
+check('two charts, each beside its box', (await android.locator('.composer .aspect-row').count()) === 2 && (await android.locator('.composer .aspect-row .chart-card').count()) === 2 && (await android.locator('.composer .aspect-row textarea').count()) === 2);
+check("the hotel's two picked aspects: Customers + Branches & staff", (await android.textContent('.composer .aspect-row >> nth=0'))!.includes('Guests from abroad') && (await android.textContent('.composer .aspect-row >> nth=1'))!.includes('Hotel staff'));
 await android.click('button:has-text("Post on Ladpet")');
-check('a sentence for every chart is required', (await android.textContent('.composer .error'))!.includes('Write a sentence for chart 1, 2, 3, 4, 5 and 6'));
-const S1 = [
-  'Rooms sold fell sharply from 1,700 in February to 950 in April.',
-  'The share of guests from abroad rose steadily to 60% in June.',
-  'The room price dropped to 1,400 baht in April.',
-  'There was a sharp rise in the electricity bill between February and April.',
-  'Instagram followers fluctuated between 12,000 and 17,000.',
-  'The number of staff grew from 25 in 2021 to 45 in 2025.',
-];
-for (let i = 0; i < 4; i++) await android.fill(`.composer .aspect-row >> nth=${i} >> textarea`, S1[i]);
+check('a sentence for each chart is required', (await android.textContent('.composer .error'))!.includes('Write a sentence for chart 1 and 2'));
+await android.fill('.composer .aspect-row >> nth=0 >> textarea', 'The share of guests from abroad rose steadily to 60% in June.');
 await android.click('button:has-text("Post on Ladpet")');
-check('names the empty ones', (await android.textContent('.composer .error'))!.includes('chart 5 and 6'));
-for (let i = 4; i < 6; i++) await android.fill(`.composer .aspect-row >> nth=${i} >> textarea`, S1[i]);
+check('names the empty one', (await android.textContent('.composer .error'))!.includes('chart 2'));
+await android.fill('.composer .aspect-row >> nth=1 >> textarea', 'The number of staff grew from 25 in 2021 to 45 in 2025.');
 await shot(android, '21-android-chart-composer', true);
 await android.click('button:has-text("Post on Ladpet")');
 await android.waitForSelector('.posted-head');
 await ios.goto(`${BASE}?w=${code2}`);
 await join(ios, ['Ice', 'Pim']);
 await ios.waitForSelector('.my-company .company-head');
-check('the second pair gets company 2 (the café)', (await ios.textContent('.my-company'))!.includes('Your company · 2 of 4') && (await ios.textContent('.my-company'))!.includes('Moonbean'));
-const S2 = ['Cups sold rose sharply to 7,000 in June.', 'Regular customers remained steady at about 300.', 'The latte price increased gradually from 55 to 65 baht.', 'Coffee beans fell to 560 baht per kg in June.', 'TikTok followers grew dramatically from 5,000 to 15,000.', 'The café grew from one branch to five.'];
-for (let i = 0; i < 6; i++) await ios.fill(`.composer .aspect-row >> nth=${i} >> textarea`, S2[i]);
+check('the second pair gets company 2 (the café: Sales + Costs)', (await ios.textContent('.my-company'))!.includes('Moonbean') && (await ios.textContent('.composer .aspect-row >> nth=0'))!.includes('Cups sold') && (await ios.textContent('.composer .aspect-row >> nth=1'))!.includes('Coffee beans'));
+await ios.fill('.composer .aspect-row >> nth=0 >> textarea', 'Cups sold rose sharply to 7,000 in June.');
+await ios.fill('.composer .aspect-row >> nth=1 >> textarea', 'Coffee beans fell to 560 baht per kg in June.');
 await ios.click('button:has-text("Post on Ladpet")');
 await ios.waitForSelector('.posted-head');
 await host.waitForFunction(() => document.querySelectorAll('.tile.done').length === 2);
@@ -254,20 +246,20 @@ await host.click('button:has-text("Reveal now")');
 await host.waitForSelector('.board .ptile');
 await sleep(800);
 await shot(host, '22-host-chart-revealed');
-check('revealed: one tile per pair, each with its six charts + sentences', (await host.locator('.board .ptile').count()) === 2 && (await host.locator('.board .ptile >> nth=0 >> .aspect-cell .chart-card').count()) === 6 && (await host.textContent('.board .ptile >> nth=0'))!.includes('fell sharply from 1,700'));
+check('revealed: one tile per pair, its two charts + sentences', (await host.locator('.board .ptile').count()) === 2 && (await host.locator('.board .ptile >> nth=0 >> .aspect-cell .chart-card').count()) === 2 && (await host.textContent('.board .ptile >> nth=0'))!.includes('rose steadily to 60%'));
 await host.click('.board .ptile >> nth=1');
 await host.waitForSelector('.spot-box .aspect-cell .chart-card');
 await sleep(300);
 await shot(host, '23-host-chart-spotlight');
-check('the big view: the company, six charts, the sentence under each', (await host.textContent('.spot-box'))!.includes('Moonbean') && (await host.locator('.spot-box .aspect-cell').count()) === 6 && (await host.textContent('.spot-box'))!.includes('remained steady at about 300'));
+check('the big view: the company, two charts, the sentence under each', (await host.textContent('.spot-box'))!.includes('Moonbean') && (await host.locator('.spot-box .aspect-cell').count()) === 2 && (await host.textContent('.spot-box'))!.includes('fell to 560 baht'));
 await host.keyboard.press('Escape');
 await android.waitForSelector('.phone-board.companies .ptile');
 await shot(android, '24-android-chart-revealed', true);
-check('phones: every pair with its charts and sentences', (await android.locator('.phone-board .ptile').count()) === 2 && (await android.locator('.phone-board .ptile >> nth=0 >> .aspect-cell .chart-card').count()) === 6);
+check('phones: every pair with its charts and sentences', (await android.locator('.phone-board .ptile').count()) === 2 && (await android.locator('.phone-board .ptile >> nth=0 >> .aspect-cell .chart-card').count()) === 2);
 const [dl2] = await Promise.all([host.waitForEvent('download'), host.click('button:has-text("Save the Ladpet")')]);
 await dl2.saveAs(`tests/out/${dl2.suggestedFilename()}`);
 const html2 = readFileSync(`tests/out/${dl2.suggestedFilename()}`, 'utf8');
-check('saved file: per pair, six charts drawn with the sentences', dl2.suggestedFilename().startsWith('Ladpet_Week14_Think-Pair-Share_Describe-a-Chart_TS66_') && (html2.match(/<svg/g) ?? []).length === 12 && html2.includes('fell sharply from 1,700') && html2.includes('Moonbean Café'));
+check('saved file: per pair, its two charts drawn with the sentences', dl2.suggestedFilename().startsWith('Ladpet_Week14_Think-Pair-Share_Describe-a-Chart_TS66_') && (html2.match(/<svg/g) ?? []).length === 4 && html2.includes('rose steadily to 60%') && html2.includes('Moonbean Café'));
 await host.click('button:text-is("Finish")');
 await host.waitForSelector('text=Open Ladpet');
 

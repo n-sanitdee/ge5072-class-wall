@@ -22,7 +22,7 @@ export type BuilderBranch = {label: string; hint: string; subjects: string[]; by
 export type Chart = {title: string; labels: string[]; values: number[]; lo: number; hi: number; step: number; comma: boolean};
 
 /** Wk14 TPS: a practice company with one chart per aspect (ASPECTS order). `logo` is relative to the app's base. */
-export type Company = {name: string; kind: string; colour: string; logo: string; charts: Chart[]};
+export type Company = {name: string; kind: string; colour: string; logo: string; charts: Chart[]; pick?: number[]};
 
 export type Preset = {
   id: PresetId;
@@ -124,7 +124,17 @@ export const COMPANIES: Company[] = [
     {title: "Farm workers per month", labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"], values: [40, 45, 80, 85, 50, 40], lo: 20, hi: 100, step: 20, comma: false},
   ]},
 ];
-export const TPS14_STEPS: Step[] = [{label: "THINK", time: "5 min", text: "Split the six charts: three each (three of you: two each). On your own, write at least one sentence for each of your charts."}, {label: "PAIR", time: "3 min", text: "Swap with your partner. Check each sentence: what changed + verb + how much + when?"}, {label: "SHARE", time: "5 min", text: "Post all six sentences on Ladpet, one box per chart. Hidden until everyone has posted."}];
+// 11 Nov 2026 13:10 (Mew): six charts per pair is too much to review — each company shows only TWO random aspects
+// (wk14_companies.json "pick"; drawn once, fixed so the slide, the wall and the boards agree).
+export const COMPANIES2: Company[] = COMPANIES.map((c, k) => ({...c, pick: [[1, 5], [0, 3], [4, 5], [2, 3]][k]}));
+
+/** The charts a pair sees: the company's picked aspects (wk14-company2), or all six (the first company version). */
+export function shownCharts(c: Company): {aspect: string; chart: Chart}[] {
+  return (c.pick ?? c.charts.map((_, i) => i)).map((i) => ({aspect: ASPECTS[i], chart: c.charts[i]}));
+}
+export const TPS14_STEPS: Step[] = [{label: "THINK", time: "5 min", text: "Take one chart each (three of you: two share a chart). On your own, write at least one sentence about your chart."}, {label: "PAIR", time: "3 min", text: "Swap with your partner. Check each sentence: what changed + verb + how much + when?"}, {label: "SHARE", time: "5 min", text: "Post both sentences on Ladpet, one box per chart. Hidden until everyone has posted."}];
+/** The first company version (six charts; TS66 ran it 11 Nov 12:32). */
+export const TPS14_STEPS_SIX: Step[] = [{label: "THINK", time: "5 min", text: "Split the six charts: three each (three of you: two each). On your own, write at least one sentence for each of your charts."}, {label: "PAIR", time: "3 min", text: "Swap with your partner. Check each sentence: what changed + verb + how much + when?"}, {label: "SHARE", time: "5 min", text: "Post all six sentences on Ladpet, one box per chart. Hidden until everyone has posted."}];
 export const BRAIN14_STEPS: Step[] = [{label: "GROUP", time: "10 min", text: "Your own company: write your group's own sentence for each aspect — what changed, how much, when?"}, {label: "POST", time: "1 min", text: "One phone per group posts the sentences. Add the AI-generated graph for your presentation slide if you have it. Hidden until everyone has posted."}];
 
 // ── Week 14 · the form's 11 verbs and 7 adverbs (build_wk14.py VERBS / ADJ; the Final Project form's list) ──
@@ -272,6 +282,7 @@ export const PRESETS: Preset[] = [
   },
   {
     id: 'wk14-company',
+    legacy: true,
     week: 'Week 14',
     activity: 'Think-Pair-Share',
     title: 'Describe a Chart',
@@ -288,6 +299,28 @@ export const PRESETS: Preset[] = [
     },
     intro: 'Ladpet gives your pair one company and its six charts.',
     introTh: 'Ladpet จะให้บริษัท 1 แห่งกับคู่ของคุณ พร้อมกราฟ 6 กราฟ',
+    steps: TPS14_STEPS_SIX,
+  },
+  {
+    id: 'wk14-company2',
+    week: 'Week 14',
+    activity: 'Think-Pair-Share',
+    title: 'Describe a Chart',
+    who: 'pair',
+    theme: 'teal',
+    photo: false,
+    // 11 Nov 2026 13:10 (Mew): one company per pair, but only TWO of its charts (its "pick"), one box beside each
+    companies: COMPANIES2,
+    fields: {
+      heading: 'At least one sentence per chart',
+      th: 'เขียนอย่างน้อย 1 ประโยคต่อกราฟ',
+      items: [
+        {label: 'Chart 1', required: true},
+        {label: 'Chart 2', required: true},
+      ],
+    },
+    intro: 'Ladpet gives your pair one company and two of its charts.',
+    introTh: 'Ladpet จะให้บริษัท 1 แห่งกับคู่ของคุณ พร้อมกราฟ 2 กราฟ',
     steps: TPS14_STEPS,
   },
   {

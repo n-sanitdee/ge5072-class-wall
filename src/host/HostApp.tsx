@@ -237,7 +237,7 @@ function Setup({
                     {p.id === 'custom'
                       ? 'your title + question · posts show straight away'
                       : p.companies
-                        ? 'Pairs · Ladpet gives each pair a company + its six charts'
+                        ? `Pairs · Ladpet gives each pair a company + ${p.companies[0]?.pick ? 'two of its charts' : 'its six charts'}`
                         : p.charts
                         ? 'Pairs · Ladpet gives each name a chart'
                         : p.frames
@@ -389,7 +389,7 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
           {preset.id === 'wk13-spot9'
             ? 'Post one marked screenshot per pair'
             : preset.companies
-              ? 'Ladpet gives your pair a company and six charts — a sentence per chart, then post'
+              ? `Ladpet gives your pair a company and ${preset.fields?.items.length === 2 ? 'two' : 'six'} charts — a sentence per chart, then post`
               : preset.charts
               ? 'Ladpet gives you a chart — write together, then post'
               : live

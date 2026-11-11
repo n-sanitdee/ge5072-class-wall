@@ -1,5 +1,5 @@
 // "Save the Ladpet": one self-contained HTML file (photos embedded) — KPI teaching-technique evidence.
-import {GOOD_P, NINE, type Preset, fullTitle, titleParts} from './presets.ts';
+import {GOOD_P, NINE, type Preset, fullTitle, shownCharts, titleParts} from './presets.ts';
 import {chartSvg} from '../ui/chart-svg.ts';
 import {type Post, type Pub, type Team, isPosted} from './types.ts';
 import {defaultGroupName} from './wall-client.ts';
@@ -52,7 +52,10 @@ export function buildWallHtml(opts: {
       // Wk14 company: every chart with the pair's sentence for it (11 Nov 2026)
       if (co) parts.push(`<div class="tag">${esc(co.name)} · ${esc(co.kind)}</div>`);
       parts.push(`<div class="aspects">${preset.fields.items
-        .map((it, i) => `<div class="aspect"><div class="chart-head">${i + 1} · ${esc(it.label)}${co ? ` — ${esc(co.charts[i].title)}` : ''}</div>${co ? chartSvg(co.charts[i], {compact: true, accent: accentHi}) : ''}<p class="sent">${esc(f(i) ?? '—')}</p></div>`)
+        .map((it, i) => {
+          const sh = co ? shownCharts(co)[i] : undefined;
+          return `<div class="aspect"><div class="chart-head">${i + 1} · ${esc(sh ? sh.aspect : it.label)}${sh ? ` — ${esc(sh.chart.title)}` : ''}</div>${sh ? chartSvg(sh.chart, {compact: true, accent: accentHi}) : ''}<p class="sent">${esc(f(i) ?? '—')}</p></div>`;
+        })
         .join('')}</div>`);
     } else if (preset.fields && !preset.charts) {
       const rows = preset.fields.items.map((it, i) => (f(i) ? `<dt>${esc(it.label)}</dt><dd>${esc(f(i)!)}</dd>` : '')).join('');

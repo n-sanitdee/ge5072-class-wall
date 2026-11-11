@@ -15,6 +15,7 @@ import {
   adverbsFor,
   amountsFor,
   assignable,
+  shownCharts,
   getPreset,
   titleParts,
 } from '../lib/presets.ts';
@@ -827,6 +828,7 @@ function Composer({client, st, preset, photoAllowed, live, revealed}: {client: W
           <Bi className="field-heading" en={preset.fields.heading} th={preset.fields.th} />
           {preset.fields.items.map((f, i) => {
             const co = preset.companies && st.chart !== undefined ? preset.companies[st.chart] : undefined;
+            const shown = co ? shownCharts(co)[i] : undefined;
             const box = (
             <label key={f.label} className="field">
               <span className="field-name">
@@ -838,9 +840,9 @@ function Composer({client, st, preset, photoAllowed, live, revealed}: {client: W
             </label>
             );
             // Wk14 company: each box beside its chart (Mew, 11 Nov 2026)
-            return co ? (
+            return shown ? (
               <div key={f.label} className="aspect-row">
-                <ChartCard chart={co.charts[i]} label={`${i + 1} · ${f.label}`} compact />
+                <ChartCard chart={shown.chart} label={`${i + 1} · ${shown.aspect}`} compact />
                 {box}
               </div>
             ) : (

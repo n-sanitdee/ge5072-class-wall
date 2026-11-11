@@ -1,5 +1,5 @@
 import {type CSSProperties, type ReactNode, useEffect, useRef, useState} from 'react';
-import {BAD_P, type Chart, type Company, type Preset} from '../lib/presets.ts';
+import {BAD_P, type Chart, type Company, type Preset, shownCharts} from '../lib/presets.ts';
 import {chartSvg} from './chart-svg.ts';
 import type {Post} from '../lib/types.ts';
 
@@ -125,14 +125,15 @@ export function PostBody({post, preset, big, chart}: {post: Post; preset: Preset
   const c = preset.charts && typeof post.choice === 'number' ? preset.charts[post.choice] : null;
   // Wk14 company (Mew, 11 Nov 2026): every chart with the pair's sentence for it, together
   const co = preset.companies && typeof post.choice === 'number' ? preset.companies[post.choice] : null;
-  if (preset.companies && preset.fields)
+  if (preset.companies && preset.fields) {
+    const shown = co ? shownCharts(co) : null;
     return (
       <div className={`post-body ${big ? 'big' : ''}`}>
         {co && <CompanyHead company={co} />}
-        <div className="aspect-grid">
+        <div className={`aspect-grid ${preset.fields.items.length === 2 ? 'n2' : ''}`}>
           {preset.fields.items.map((it, i) => (
             <div key={it.label} className="aspect-cell">
-              {co ? <ChartCard chart={co.charts[i]} label={`${i + 1} · ${it.label}`} compact /> : <div className="chart-label">{`${i + 1} · ${it.label}`}</div>}
+              {shown?.[i] ? <ChartCard chart={shown[i].chart} label={`${i + 1} · ${shown[i].aspect}`} compact /> : <div className="chart-label">{`${i + 1} · ${it.label}`}</div>}
               <p className="sent">{f(i) ?? '—'}</p>
             </div>
           ))}
@@ -140,6 +141,7 @@ export function PostBody({post, preset, big, chart}: {post: Post; preset: Preset
         {post.text && <p className="post-text">{post.text}</p>}
       </div>
     );
+  }
   return (
     <div className={`post-body ${big ? 'big' : ''}`}>
       {/* Wk13 profile: one paragraph (Mew, 22 Oct 2026) */}
