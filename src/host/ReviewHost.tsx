@@ -47,7 +47,7 @@ export function PoolUnlock({onPool, compact}: {onPool: (p: Pool | null) => void;
   if (pool)
     return (
       <div className={`pool-ok ${compact ? 'compact' : ''}`}>
-        ✓ Project pool unlocked — {pool.projects.length} Final Projects (graded up to {pool.built})
+        ✓ Project pool unlocked — {pool.projects.length} Final Projects (pool built {pool.built})
         <button
           type="button"
           className="link"
