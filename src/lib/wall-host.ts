@@ -13,6 +13,7 @@ import {
   update,
 } from 'firebase/database';
 import {assignable, getPreset} from './presets.ts';
+import {MAX_PROJECTS, type Handout, type Pool, type Summary, compare, handoutOf, keyOf, nextProject, parseJson, parseMarks, scoreOf} from './review.ts';
 import {type Post, type PresetId, type Pub, type RosterRow, STALE_MS, type Team, isPosted} from './types.ts';
 
 export type HostView = {
@@ -22,6 +23,9 @@ export type HostView = {
   posts: Record<string, Post>;
   /** Wk14 chart: which chart each name was given. */
   assign: Record<string, number>;
+  /** Wk16 peer review: the projects (JSON Handouts) given to each group, and Mew's marks once it has posted them. */
+  review: Record<string, Record<string, string>>;
+  rkey: Record<string, Record<string, string>>;
   createdAt: number;
   connected: boolean;
   offset: number;
@@ -65,6 +69,10 @@ export class WallHost {
   private photoCache = new Map<string, Promise<string | null>>();
   private revealing = false;
   private assignLoaded = false;
+  private reviewLoaded = false;
+  private rkeyLoaded = false;
+  /** Wk16: the unlocked project pool (src/lib/pool.ts); projects are handed out only once it is set. */
+  pool: Pool | null = null;
   /** Tests switch this off to check the manual path. */
   autoReveal = true;
   /** Watching a wall another computer opened (its host is gone): show it, never write to it. */
@@ -102,7 +110,7 @@ export class WallHost {
         throw e;
       }
       const meta = await get(ref(db, `walls/${code}/meta/createdAt`));
-      const host = new WallHost(db, {code, pub, teams: {}, posts: {}, assign: {}, createdAt: meta.val() ?? Date.now(), connected: true, offset: 0});
+      const host = new WallHost(db, {code, pub, teams: {}, posts: {}, assign: {}, review: {}, rkey: {}, createdAt: meta.val() ?? Date.now(), connected: true, offset: 0});
       host.attach();
       return host;
     }
@@ -118,7 +126,7 @@ export class WallHost {
     if (!meta?.exists() || meta.val().hostUid !== uid) return null;
     const pub = (await get(ref(db, `walls/${code}/pub`))).val() as Pub | null;
     if (!pub || pub.ended) return null;
-    const host = new WallHost(db, {code, pub, teams: {}, posts: {}, assign: {}, createdAt: meta.val().createdAt, connected: true, offset: 0});
+    const host = new WallHost(db, {code, pub, teams: {}, posts: {}, assign: {}, review: {}, rkey: {}, createdAt: meta.val().createdAt, connected: true, offset: 0});
     host.attach();
     return host;
   }
@@ -132,7 +140,7 @@ export class WallHost {
     const pub = (await get(ref(db, `walls/${code}/pub`)).catch(() => null))?.val() as Pub | null;
     if (!pub || pub.ended) return null;
     const meta = await get(ref(db, `walls/${code}/meta`)).catch(() => null);
-    const host = new WallHost(db, {code, pub, teams: {}, posts: {}, assign: {}, createdAt: meta?.val()?.createdAt ?? 0, connected: true, offset: 0});
+    const host = new WallHost(db, {code, pub, teams: {}, posts: {}, assign: {}, review: {}, rkey: {}, createdAt: meta?.val()?.createdAt ?? 0, connected: true, offset: 0});
     host.readOnly = true;
     host.attach();
     return host;
@@ -181,6 +189,18 @@ export class WallHost {
     });
     on<Record<string, Team>>(`${this.base}/teams`, (teams) => this.changed({teams: teams ?? {}}));
     on<Record<string, Post>>(`${this.base}/posts`, (posts) => this.changed({posts: posts ?? {}}));
+    if (getPreset(this.view.pub.preset).review) {
+      on<Record<string, Record<string, string>>>(`${this.base}/review`, (review) => {
+        this.reviewLoaded = true;
+        this.patch({review: review ?? {}});
+        this.assignReviews();
+      });
+      on<Record<string, Record<string, string>>>(`${this.base}/rkey`, (rkey) => {
+        this.rkeyLoaded = true;
+        this.patch({rkey: rkey ?? {}});
+        this.assignReviews();
+      });
+    }
     if (assignable(getPreset(this.view.pub.preset))) {
       on<Record<string, number>>(`${this.base}/assign`, (assign) => {
         this.assignLoaded = true;
@@ -212,6 +232,61 @@ export class WallHost {
     update(ref(this.db, `${this.base}/assign`), writes).catch(() => {});
   }
 
+  /** Wk16: the projector unlocked the pool — hand out projects to everyone waiting. */
+  setPool(pool: Pool | null) {
+    this.pool = pool;
+    this.assignReviews();
+  }
+
+  /**
+   * Wk16 peer review, run on every change: (1) every group gets a project from another section (the section's planned
+   * order, never one already on this wall); (2) once a group has posted project k (fields.f<k>), it gets Mew's marks
+   * (rkey/<tid>/<k>), its marks are compared and the summary goes to fields.f<k+3>; (3) it is given its next project,
+   * up to MAX_PROJECTS. Writes are patched into the view at once, so a burst of changes never hands out twice.
+   */
+  private assignReviews() {
+    const pool = this.pool;
+    if (this.readOnly || !pool || !this.reviewLoaded || !this.rkeyLoaded || this.view.pub.ended) return;
+    if (!getPreset(this.view.pub.preset).review) return;
+    const review = {...this.view.review};
+    const rkey = {...this.view.rkey};
+    const writes: Record<string, unknown> = {};
+    const used = Object.values(review).flatMap((r) => Object.values(r).map((h) => parseJson<Handout>(h)?.id ?? ''));
+    const give = (tid: string, k: number) => {
+      const pp = nextProject(pool, this.view.pub.section, used);
+      if (!pp) return;
+      const json = JSON.stringify(handoutOf(pp));
+      review[tid] = {...(review[tid] ?? {}), [k]: json};
+      used.push(pp.id);
+      writes[`review/${tid}/${k}`] = json;
+    };
+    for (const [tid] of orderedTeams(this.view.teams)) {
+      if (!review[tid]?.['0']) give(tid, 0);
+      const post = this.view.posts[tid];
+      for (let k = 0; k < MAX_PROJECTS; k++) {
+        const h = parseJson<Handout>(review[tid]?.[k]);
+        if (!h || !post?.fields?.[`f${k}`]) continue;
+        const pp = pool.projects.find((p) => p.id === h.id);
+        if (!pp) continue;
+        const key = keyOf(pp);
+        if (!rkey[tid]?.[k]) {
+          const json = JSON.stringify(key);
+          rkey[tid] = {...(rkey[tid] ?? {}), [k]: json};
+          writes[`rkey/${tid}/${k}`] = json;
+        }
+        const marks = parseMarks(post.fields[`b${k}`]);
+        const sc = scoreOf(marks.p, marks.t, h.p.length, h.t.length).score;
+        const sum: Summary = {co: h.co, sc, aj: key.score, ...compare(h, marks, key)};
+        const json = JSON.stringify(sum);
+        if (post.fields[`f${k + 3}`] !== json) writes[`posts/${tid}/fields/f${k + 3}`] = json;
+        if (k + 1 < MAX_PROJECTS && !review[tid]?.[k + 1]) give(tid, k + 1);
+      }
+    }
+    if (!Object.keys(writes).length) return;
+    this.patch({review, rkey});
+    update(ref(this.db, this.base), writes).catch(() => {});
+  }
+
   subscribe(fn: (v: HostView) => void): () => void {
     this.subs.add(fn);
     fn(this.view);
@@ -227,6 +302,7 @@ export class WallHost {
     this.patch(p);
     this.scheduleRoster();
     this.assignCharts();
+    this.assignReviews();
     this.maybeReveal();
   }
 
@@ -289,6 +365,8 @@ export class WallHost {
       [`thumbs/${tid}`]: null,
       [`photos/${tid}`]: null,
       [`assign/${tid}`]: null,
+      [`review/${tid}`]: null,
+      [`rkey/${tid}`]: null,
       [`kicked/${tid}`]: true,
     };
     if (t) paths[`names/${t.name.toLowerCase().split(' ').join('')}`] = null;
@@ -327,6 +405,8 @@ export class WallHost {
    *  boards site has saved it (ge5072-ladpet-boards tools/archive.py, every 10 min), which then deletes it once it is
    *  3 hours old (Mew, 28 Oct 2026: finished walls publish their board automatically). */
   async finish() {
+    // Wk16: a finished peer-review wall is always readable afterwards (collect-reviews.ts), so open it first
+    if (getPreset(this.view.pub.preset).review && !this.view.pub.revealed) await this.reveal();
     await update(ref(this.db, `${this.base}/pub`), {ended: true});
     this.destroy();
   }

@@ -1,6 +1,7 @@
 // Phone side of a wall. The student screen and the load test both use it.
 import {type Database, type Unsubscribe, get, onValue, ref, runTransaction, serverTimestamp, update} from 'firebase/database';
 import {merge3} from './merge.ts';
+import {type Marks, mergeMarks, parseMarks} from './review.ts';
 import {type Draft, LIMITS, type Post, type Pub, type Team} from './types.ts';
 
 export type JoinError = 'not-found' | 'locked' | 'revealed' | 'ended' | 'taken' | 'removed' | 'gone' | 'network';
@@ -74,6 +75,9 @@ export type WallState = {
   mine?: Post | null;
   /** Wk14 chart: the chart Ladpet gave this name (undefined = not yet). */
   chart?: number;
+  /** Wk16 peer review: this group's projects (JSON Handouts by number) and Mew's marks once posted. */
+  review?: Record<string, string>;
+  rkey?: Record<string, string>;
   /** = groups (kept for the board code). */
   teams: Record<string, Team>;
   posts: Record<string, Post>;
@@ -111,7 +115,7 @@ export class WallClient {
     this.mineUnsubs = [];
     this.tid = null;
     this.name = '';
-    this.patch({inWall: null, removed: false, mine: undefined, chart: undefined});
+    this.patch({inWall: null, removed: false, mine: undefined, chart: undefined, review: undefined, rkey: undefined});
   }
 
   private get base() {
@@ -226,6 +230,9 @@ export class WallClient {
     on<boolean>(`${this.base}/kicked/${tid}`, (k) => this.patch({removed: !!k}));
     on<Post>(`${this.base}/posts/${tid}`, (p) => this.patch({mine: p}));
     on<number>(`${this.base}/assign/${tid}`, (c) => this.patch({chart: typeof c === 'number' ? c : undefined}));
+    // Wk16 peer review (on other walls these are simply empty)
+    on<Record<string, string>>(`${this.base}/review/${tid}`, (r) => this.patch({review: r ?? {}}));
+    on<Record<string, string>>(`${this.base}/rkey/${tid}`, (r) => this.patch({rkey: r ?? {}}));
   }
 
   private watchWall() {
@@ -275,6 +282,26 @@ export class WallClient {
       {applyLocally: false},
     );
     return (res.snapshot.val() as string | null) ?? '';
+  }
+
+  /**
+   * Wk16: save the group's marks for project k (fields.b<k>, JSON). Several phones may mark at once: per sentence,
+   * what this phone changed since `base` wins, the rest is the database's (review.ts mergeMarks). Returns what is saved.
+   */
+  async saveMarks(k: number, base: Marks, local: Marks): Promise<Marks> {
+    await this.ensurePost();
+    const res = await runTransaction(
+      ref(this.db, `${this.mineBase}/fields/b${k}`),
+      (cur: string | null) => JSON.stringify(mergeMarks(base, local, parseMarks(cur))),
+      {applyLocally: false},
+    );
+    return parseMarks(res.snapshot.val() as string | null);
+  }
+
+  /** Wk16: "Post on Ladpet" for project k — fields.f<k> = {co, sc}; the first one also marks the post as posted. */
+  async postProject(k: number, summary: string) {
+    await this.ensurePost();
+    await update(ref(this.db, this.mineBase), {[`fields/f${k}`]: summary, done: true});
   }
 
   /** Add, replace (image) or remove (null) the group's photo. */

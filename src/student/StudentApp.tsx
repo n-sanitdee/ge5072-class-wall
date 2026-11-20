@@ -25,6 +25,7 @@ import {type JoinError, JoinFailed, WallClient, type WallState, checkMember, che
 import {orderedTeams} from '../lib/wall-host.ts';
 import {APP_NAME, Bi, CARD_TINTS, ChartCard, CompanyHead, DbImage, Passage, PostBody, Rich, Spinner} from '../ui/common.tsx';
 import {Tile} from '../ui/tiles.tsx';
+import {ReviewComposer} from './Review.tsx';
 
 /**
  * `me` = which member this phone is ("you" on the screen). `typed` = this phone typed that name itself ("+ me" or
@@ -247,7 +248,11 @@ function Wall({code, onLeave}: {code: string; onLeave: () => void}) {
         {joined && preset.charts && <MyChart preset={preset} chart={st.chart} />}
         {joined && preset.companies && <MyCompany preset={preset} company={st.chart} />}
         {joined ? (
-          <Composer key={client.tid} client={client} st={st} preset={preset} photoAllowed={pub.photo} live={live} revealed={!!pub.revealed} />
+          preset.review ? (
+            <ReviewComposer key={client.tid} client={client} st={st} />
+          ) : (
+            <Composer key={client.tid} client={client} st={st} preset={preset} photoAllowed={pub.photo} live={live} revealed={!!pub.revealed} />
+          )
         ) : !st.removed && (!pub.revealed || joining) ? (
           <GroupJoin client={client} st={st} preset={preset} locked={!!pub.locked || !!pub.revealed} onJoined={onJoined} />
         ) : !st.removed ? (

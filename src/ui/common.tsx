@@ -2,6 +2,7 @@ import {type CSSProperties, type ReactNode, useEffect, useRef, useState} from 'r
 import {BAD_P, type Chart, type Company, type Preset, shownCharts} from '../lib/presets.ts';
 import {chartSvg} from './chart-svg.ts';
 import type {Post} from '../lib/types.ts';
+import {MAX_PROJECTS, type Summary, fmt, parseJson} from '../lib/review.ts';
 
 /** Mew named it, 22 Oct 2026. */
 export const APP_NAME = 'Ladpet';
@@ -122,6 +123,27 @@ export function CompanyHead({company, label}: {company: Company; label?: string}
 /** The finished sentences of a post, as everyone sees them (the photo is handled by the caller). */
 export function PostBody({post, preset, big, chart}: {post: Post; preset: Preset; big?: boolean; chart?: boolean}) {
   const f = (i: number) => post.fields?.[`f${i}`];
+  // Wk16 peer review (20 Nov 2026): one line per project — the company, the group's score and Ajarn's
+  if (preset.review) {
+    const rows = reviewRows(post);
+    return (
+      <div className={`post-body review-sum ${big ? 'big' : ''}`}>
+        {rows.map((r, k) => (
+          <div key={k} className="rev-row">
+            <div className="rev-co">{r.co}</div>
+            <div className="rev-scores">
+              group <b>{fmt(r.sc)}</b> · Ajarn <b>{fmt(r.aj)}</b>
+            </div>
+            {r.of ? (
+              <div className="rev-agree">
+                same marks on {r.agree}/{r.of} sentences
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    );
+  }
   const c = preset.charts && typeof post.choice === 'number' ? preset.charts[post.choice] : null;
   // Wk14 company (Mew, 11 Nov 2026): every chart with the pair's sentence for it, together
   const co = preset.companies && typeof post.choice === 'number' ? preset.companies[post.choice] : null;
@@ -187,6 +209,16 @@ export function PostBody({post, preset, big, chart}: {post: Post; preset: Preset
       {post.text && <p className="post-text">{post.text}</p>}
     </div>
   );
+}
+
+/** Wk16: a review post's projects — the host's summary (f3–f5) when it is there, else what the group posted (f0–f2). */
+export function reviewRows(post: Post): Summary[] {
+  const out: Summary[] = [];
+  for (let k = 0; k < MAX_PROJECTS; k++) {
+    const s = parseJson<Summary>(post.fields?.[`f${k + 3}`]) ?? parseJson<Summary>(post.fields?.[`f${k}`]);
+    if (s) out.push(s);
+  }
+  return out;
 }
 
 /** Rotating card colours (Padlet-like), light enough for dark text. */

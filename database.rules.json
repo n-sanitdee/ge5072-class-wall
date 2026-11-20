@@ -236,6 +236,26 @@
             ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9 && newData.val() % 1 == 0"
           }
         },
+        "review": {
+          ".read": "(auth != null && root.child('walls').child($code).child('meta/hostUid').val() == auth.uid) || (root.child('walls').child($code).child('pub/revealed').val() == true || root.child('walls').child($code).child('pub/live').val() == true)",
+          ".write": "auth != null && root.child('walls').child($code).child('meta/hostUid').val() == auth.uid",
+          "$tid": {
+            ".read": true,
+            "$k": {
+              ".validate": "$k.matches(/^[0-2]$/) && newData.isString() && newData.val().length <= 30000"
+            }
+          }
+        },
+        "rkey": {
+          ".read": "(auth != null && root.child('walls').child($code).child('meta/hostUid').val() == auth.uid) || (root.child('walls').child($code).child('pub/revealed').val() == true || root.child('walls').child($code).child('pub/live').val() == true)",
+          ".write": "auth != null && root.child('walls').child($code).child('meta/hostUid').val() == auth.uid",
+          "$tid": {
+            ".read": true,
+            "$k": {
+              ".validate": "$k.matches(/^[0-2]$/) && newData.isString() && newData.val().length <= 30000"
+            }
+          }
+        },
         "posts": {
           ".read": "(auth != null && root.child('walls').child($code).child('meta/hostUid').val() == auth.uid) || (root.child('walls').child($code).child('pub/revealed').val() == true || root.child('walls').child($code).child('pub/live').val() == true)",
           "$tid": {

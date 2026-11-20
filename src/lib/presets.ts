@@ -48,6 +48,8 @@ export type Preset = {
   companies?: Company[];
   /** Kept only so walls opened with it still show; not offered for new walls. */
   legacy?: boolean;
+  /** Week 16 peer review: Ladpet gives each group another section's Final Project to mark (src/lib/review.ts). */
+  review?: boolean;
   intro: string;
   introTh: string;
   steps: Step[];
@@ -350,6 +352,26 @@ export const PRESETS: Preset[] = [
     introTh: 'ทำในกลุ่มโปรเจกต์ 10 นาที บริษัทของกลุ่มเอง เขียนประโยคของกลุ่ม หัวข้อละช่อง',
     steps: BRAIN14_STEPS,
     tip: 'These are the six trend sentences for your Final Project.',
+  },
+  // ── Week 16 · Peer Review: Final Project (Mew, 20 Nov 2026) — each project group marks ANOTHER section's Final
+  // Project (6 profile + 6 trend sentences) with the /8 rule, posts, then compares with Ajarn's marks. The projects
+  // come from the encrypted pool (public/wk16/pool.enc.json) that the teacher's projector unlocks. ──
+  {
+    id: 'wk16-review',
+    week: 'Week 16',
+    activity: 'Peer Review',
+    title: 'Final Project',
+    who: 'group',
+    theme: 'indigo',
+    photo: false,
+    review: true,
+    intro: 'Ladpet gives your group the Final Project of a group from another section. Mark it the way Ajarn does.',
+    introTh: 'Ladpet จะให้งาน Final Project ของกลุ่มจากเซกชันอื่นกับกลุ่มของคุณ ให้คะแนนแบบที่อาจารย์ให้',
+    steps: [
+      {label: 'GROUP', time: '15 min', text: 'Read every sentence together. Mark each one: ✓ if it is correct, or tap what is wrong and write the fix.'},
+      {label: 'POST', time: '1 min', text: 'Post your marks. Then your phone shows Ajarn’s marks for the same sentences — how close were you?'},
+    ],
+    tip: 'Finished early? Ladpet gives you another project.',
   },
   {
     id: 'custom',

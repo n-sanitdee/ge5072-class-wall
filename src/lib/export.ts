@@ -3,6 +3,40 @@ import {GOOD_P, NINE, type Preset, fullTitle, shownCharts, titleParts} from './p
 import {chartSvg} from '../ui/chart-svg.ts';
 import {type Post, type Pub, type Team, isPosted} from './types.ts';
 import {defaultGroupName} from './wall-client.ts';
+import {type Handout, type Key, type KeyOut, MAX_PROJECTS, TAGS, agrees, compare, fmt, hasProblem, parseJson, parseMarks, scoreOf} from './review.ts';
+
+/** Wk16: chips as text ("Grammar ×2 · Punctuation", or "✓ correct"). */
+function chipsText(k: Key | undefined): string {
+  if (!hasProblem(k)) return '✓ correct';
+  return TAGS.filter((t) => k![t.c]).map((t) => (t.c === 'g' && (k!.g ?? 0) > 1 ? `${t.en} ×${k!.g}` : t.en)).join(' · ');
+}
+
+/** Wk16: every project a group marked, sentence by sentence, with Ajarn's marks (Save the Ladpet = Mew's own copy). */
+function reviewHtml(p: Post, review?: Record<string, string>, rkey?: Record<string, string>): string {
+  const out: string[] = [];
+  for (let k = 0; k < MAX_PROJECTS; k++) {
+    const h = parseJson<Handout>(review?.[k]);
+    if (!h || !p.fields?.[`f${k}`]) continue;
+    const marks = parseMarks(p.fields[`b${k}`]);
+    const key = parseJson<KeyOut>(rkey?.[k]);
+    const sc = scoreOf(marks.p, marks.t, h.p.length, h.t.length).score;
+    const cmp = key ? compare(h, marks, key) : null;
+    const rows = (['p', 't'] as const)
+      .flatMap((box) =>
+        (box === 'p' ? h.p : h.t).map((t, i) => {
+          const m = marks[box][i];
+          const kk = key?.[box][i];
+          const same = key ? agrees(m, kk?.k) : true;
+          return `<tr${same ? '' : ' class="differ"'}><th>${box.toUpperCase()}${i + 1}</th><td>${esc(t)}</td><td>${esc(chipsText(m))}${m?.fix ? `<div class="fix">→ ${esc(m.fix)}</div>` : ''}</td><td>${key ? esc(chipsText(kk?.k)) : ''}${kk?.n ? `<div class="note">${esc(kk.n)}</div>` : ''}</td></tr>`;
+        }),
+      )
+      .join('');
+    out.push(
+      `<section class="rv"><div class="tag">${esc(h.co)} · group ${fmt(sc)}/8 · Ajarn ${fmt(key?.score)}/8${cmp ? ` · same marks on ${cmp.agree}/${cmp.of}` : ''}</div><table><thead><tr><th></th><th>Sentence</th><th>Group</th><th>Ajarn</th></tr></thead><tbody>${rows}</tbody></table>${key?.note ? `<p class="note">${esc(key.note)}</p>` : ''}</section>`,
+    );
+  }
+  return out.join('');
+}
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]!);
 const rich = (s: string) =>
@@ -30,6 +64,8 @@ export function buildWallHtml(opts: {
   posts: Record<string, Post>;
   photos: Record<string, string | null>;
   date?: Date;
+  review?: Record<string, Record<string, string>>;
+  rkey?: Record<string, Record<string, string>>;
 }): string {
   const {preset, pub, teams, posts, photos} = opts;
   const date = opts.date ?? new Date();
@@ -42,6 +78,7 @@ export function buildWallHtml(opts: {
     const img = photos[id];
     const f = (i: number) => p.fields?.[`f${i}`];
     if (img) parts.push(`<img src="${img}" alt="${esc(t.name)}">`);
+    if (preset.review) parts.push(reviewHtml(p, opts.review?.[id], opts.rkey?.[id]));
     if (preset.frames) parts.push(`<p class="para">${esc(preset.frames.map((_, i) => f(i)).filter(Boolean).join(' '))}</p>`);
     if (preset.builder) {
       const rows = preset.builder.map((b, i) => (f(i) ? `<dt>${esc(b.label)}</dt><dd>${esc(f(i)!)}</dd>` : '')).join('');
@@ -102,6 +139,9 @@ article img{width:100%;border-radius:8px;border:1px solid #e3e5f1;display:block;
 dl{margin:0}dt{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#64748b;margin-top:6px}dd{margin:2px 0 0}
 .text{white-space:pre-wrap;margin:4px 0}
 .para{margin:2px 0;line-height:1.5}
+main.review{columns:auto;display:block}main.review article{margin:0 0 18px}
+.rv table{border-collapse:collapse;width:100%;font-size:14px;margin:6px 0 4px}.rv th,.rv td{border-top:1px solid #e3e5f1;padding:5px 6px;text-align:left;vertical-align:top}.rv thead th{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.04em}
+.rv tr.differ td{background:#fff4e5}.rv .fix{color:#0f766e;font-size:13px}.rv .note,.rv p.note{color:#64748b;font-size:13px;margin:2px 0}
 main.companies{columns:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,640px),1fr));gap:16px;align-items:start}main.companies article{margin:0}
 .aspects{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}.aspect{border:1px solid #e3e5f1;border-radius:10px;padding:6px 8px}.aspect .chart-head{font-size:12px}.aspect svg{width:100%;height:auto;display:block}
 section.chart{break-inside:avoid;background:#fff;border:2px solid var(--accent);border-radius:14px;padding:10px 12px;margin:0 0 16px}
@@ -114,7 +154,7 @@ footer{padding:0 28px 28px;color:#64748b;font-size:13px}
 <header><div class="k">Ladpet · ${esc(pub.section)}</div><h1>${lead ? `<span class="lead">${esc(lead)}</span> ` : ''}${esc(title)}</h1>
 <p>${esc(when)} · ${posted.length} ${posted.length === 1 ? 'post' : 'posts'}${missing.length ? ` · not posted: ${missing.join(', ')}` : ''}</p></header>
 ${pub.prompt ? `<p style="margin:16px 28px 0;font-size:18px">${esc(pub.prompt)}</p>` : ''}
-<main${preset.companies ? ' class="companies"' : ''}>
+<main${preset.companies ? ' class="companies"' : preset.review ? ' class="review"' : ''}>
 ${cards || '<p>No posts.</p>'}
 </main>
 ${fixes}

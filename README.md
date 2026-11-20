@@ -27,10 +27,26 @@ Students don't install anything or log in.
 | 13 | **Week 13 · Brainstorm: Map Your Company Profile** | project groups | the blanks of each sub-topic's sentence frame (7) | the frames; the finished sentences build up into one profile paragraph, which is what the wall shows |
 | 14 | **Week 14 · Think-Pair-Share: Describe a Chart** | pairs | best sentence (+ up to 2 more) | page 1 = name only; page 2 = the chart Ladpet gave them (the four charts in turn) |
 | 14 | **Week 14 · Brainstorm: What Changed in Your Company?** | project groups | one trend sentence per branch (6), built by tapping: what changed → verb (the form's 11, past) → adverb (the form's 7) → by / to / from … to + their number → when | the finished sentence as they tap |
+| 16 | **Week 16 · Peer Review: Final Project** | project groups | marks for every sentence of another section's Final Project (✓ or Grammar / Spelling / Punctuation / It–They / Doesn't count + the fix), up to three projects | the project Ladpet gave them; after posting, Ajarn's marks beside theirs |
 | any | **Your own question** | anyone | text (photo optional) | the question you type; **posts show on the wall straight away** |
 
 Texts and chart data are copied from the Week 13/14 decks (`Teaching/_slide_toolkit/build_wk13.py`,
 `build_wk14.py`) into [`src/lib/presets.ts`](src/lib/presets.ts) — change both together.
+
+### Week 16 · Peer Review (20 Nov 2026)
+
+Each project group marks the Final Project of a group from **another section** with Mew's /8 rule (−1 per missing
+sentence of 6 + 6, −0.5 per grammar error up to −5, −0.5 once each for spelling, punctuation and It/They), posts, and
+then sees Mew's own marks for the same sentences. The projects come from a **private pool** built from Mew's grading
+workbook (`Teaching/Assignments/PeerReview_Wk16/build_pool.py`, OneDrive). This repo holds only an **encrypted**
+copy, [`public/wk16/pool.enc.json`](public/wk16/pool.enc.json) (AES-GCM, key from a passphrase via PBKDF2;
+[`scripts/encrypt-pool.ts`](scripts/encrypt-pool.ts)); the projector unlocks it with the passphrase in that folder's
+`README_TEACHER_ONLY.md` and remembers it. The host then writes `review/<tid>/<k>` (the k-th project, no marks) and,
+once the group has posted it, `rkey/<tid>/<k>` (Mew's marks) and a summary in the post (`fields.f<k+3>`); see
+[`src/lib/review.ts`](src/lib/review.ts). Each section gets projects in a planned order (never its own section, the
+first groups of all six classes on different projects, projects with deductions first). These walls are **never
+published** on the boards site; [`scripts/collect-reviews.ts`](scripts/collect-reviews.ts) copies them to Mew's
+OneDrive within 6 hours of class. Test: `tests/tmp/review-flow.ts`.
 
 ## Host guide
 

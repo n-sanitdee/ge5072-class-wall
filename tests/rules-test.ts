@@ -256,6 +256,33 @@ check('a hidden wall cannot be switched to live', await denied(set(ref(hostApp.d
 await liveWall.finish();
 solo.stop();
 
+// ── Wk16 peer review (20 Nov 2026): each group reads only its own project and, after posting, Ajarn's marks ──
+const rvHost = await WallHost.create(hostApp.db, uid, {preset: 'wk16-review', section: 'CA48'});
+rvHost.autoReveal = false;
+const rvBase = `walls/${rvHost.view.code}`;
+const rvApps = [0, 1].map((k) => openDatabase(backend, `rv${k}`));
+const rv = rvApps.map((a) => new WallClient(a.db, rvHost.view.code));
+await rv[0].join('Rev One', ['Mint']);
+await rv[1].join('Rev Two', ['Bo']);
+const [rt0, rt1] = [rv[0].tid!, rv[1].tid!];
+check('the host can hand out a project', await allowed(update(ref(hostApp.db, rvBase), {[`review/${rt0}/0`]: '{"id":"x"}', [`review/${rt1}/0`]: '{"id":"y"}'})));
+check('a group reads its own project', await allowed(get(ref(rvApps[0].db, `${rvBase}/review/${rt0}`))));
+check("a group cannot list everyone's projects before the reveal", await denied(get(ref(rvApps[0].db, `${rvBase}/review`))));
+check('a group cannot write a project', await denied(set(ref(rvApps[0].db, `${rvBase}/review/${rt0}/1`), '{"id":"z"}')));
+check("a group cannot write Ajarn's marks", await denied(set(ref(rvApps[0].db, `${rvBase}/rkey/${rt0}/0`), '{"score":8}')));
+check('no fourth project (k = 0-2)', await denied(set(ref(hostApp.db, `${rvBase}/review/${rt0}/3`), '{}')));
+check("the host can give Ajarn's marks", await allowed(set(ref(hostApp.db, `${rvBase}/rkey/${rt0}/0`), '{"score":6.5}')));
+check("a group reads its own marks from Ajarn", await allowed(get(ref(rvApps[0].db, `${rvBase}/rkey/${rt0}`))));
+check("nobody can list Ajarn's marks before the reveal", await denied(get(ref(rvApps[1].db, `${rvBase}/rkey`))));
+await rv[0].saveMarks(0, {p: [], t: []}, {p: [{ok: 1}], t: []});
+await rv[0].postProject(0, '{"co":"x","sc":8}');
+check("the host writes a group's summary (f3)", await allowed(set(ref(hostApp.db, `${rvBase}/posts/${rt0}/fields/f3`), '{"co":"x","sc":8,"aj":6.5}')));
+await rvHost.finish();
+check('finishing a peer-review wall reveals it first', (await get(ref(hostApp.db, `${rvBase}/pub/revealed`))).val() === true);
+check('after the reveal anyone can read all projects and marks', (await allowed(get(ref(rvApps[1].db, `${rvBase}/review`)))) && (await allowed(get(ref(rvApps[1].db, `${rvBase}/rkey`)))));
+for (const c of rv) c.stop();
+await rvHost.discard().catch(() => {});
+
 // Another signed-in user (e.g. a student who opened #host) cannot touch this wall
 const other = openDatabase(backend, 'other-host');
 await signInHost(other.app, backend);
@@ -281,5 +308,5 @@ check('the host can still delete its finished wall', !(await get(ref(hostApp.db,
 
 for (const p of [...phones, tp, ghost]) p.stop();
 console.log(`\n${passes} passed, ${failures} failed`);
-await Promise.all([hostApp, ...apps, other, dupApp, ghostApp].map((x) => deleteApp(x.app).catch(() => {})));
+await Promise.all([hostApp, ...apps, other, dupApp, ghostApp, ...rvApps].map((x) => deleteApp(x.app).catch(() => {})));
 process.exit(failures ? 1 : 0);

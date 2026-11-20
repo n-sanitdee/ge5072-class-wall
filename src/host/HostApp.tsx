@@ -8,6 +8,9 @@ import type {Database} from 'firebase/database';
 import {type HostView, WallHost, orderedTeams, revealBlocker} from '../lib/wall-host.ts';
 import {BoardView, type WallRow, WallList} from './WallList.tsx';
 import {APP_NAME, CARD_TINTS, ChartCard, DbImage, PostBody, Rich, Spinner, formatCode} from '../ui/common.tsx';
+import {cachedPool} from '../lib/pool.ts';
+import {type Handout, parseJson} from '../lib/review.ts';
+import {PoolUnlock, ReviewDetail} from './ReviewHost.tsx';
 import {FitBoard, Tile, itemFor, membersLine} from '../ui/tiles.tsx';
 import {Qr} from '../ui/Qr.tsx';
 
@@ -127,6 +130,7 @@ export default function HostApp() {
       onBoard={setBoard}
       onOpen={async (w) => {
         const h = await WallHost.create(conn.db, uid, w);
+        if (getPreset(w.preset).review) h.setPool(cachedPool());
         store.set({code: h.view.code, section: w.section});
         store.remember({code: h.view.code, section: w.section, title: fullTitle(getPreset(w.preset), h.view.pub.title), createdAt: h.view.createdAt});
         store.rememberSection(w.section);
@@ -135,6 +139,7 @@ export default function HostApp() {
       onEnter={async (code, mine) => {
         const h = mine ? await WallHost.resume(conn.db, uid, code) : await WallHost.watch(conn.db, code);
         if (!h) return false;
+        if (getPreset(h.view.pub.preset).review) h.setPool(cachedPool());
         setHost(h);
         return true;
       }}
@@ -164,7 +169,8 @@ function Setup({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const preset = presetId ? getPreset(presetId) : null;
-  const ready = section && preset && (preset.id !== 'custom' || (title.trim() && prompt.trim()));
+  const [pool, setPool] = useState(cachedPool());
+  const ready = section && preset && (preset.id !== 'custom' || (title.trim() && prompt.trim())) && (!preset.review || pool);
 
   async function open() {
     if (!ready || !preset) return;
@@ -186,6 +192,7 @@ function Setup({
     ['Week 12 · Final Project', PRESETS.filter((p) => p.week === 'Week 12')],
     ['Week 13 · Company Profile', PRESETS.filter((p) => p.week === 'Week 13')],
     ['Week 14 · Describing Trends', PRESETS.filter((p) => p.week === 'Week 14' && !p.legacy)],
+    ['Week 16 · Final Project', PRESETS.filter((p) => p.week === 'Week 16')],
     ['Any lesson', PRESETS.filter((p) => p.id === 'custom')],
   ];
 
@@ -236,6 +243,8 @@ function Setup({
                   <span className="preset-meta">
                     {p.id === 'custom'
                       ? 'your title + question · posts show straight away'
+                      : p.review
+                        ? "Project groups · Ladpet gives each group another section's project to mark, then shows Ajarn's marks"
                       : p.companies
                         ? `Pairs · Ladpet gives each pair a company + ${p.companies[0]?.pick ? 'two of its charts' : 'its six charts'}`
                         : p.charts
@@ -253,6 +262,7 @@ function Setup({
             </div>
           </div>
         ))}
+        {preset?.review && <PoolUnlock onPool={setPool} />}
         {preset?.id === 'custom' && (
           <div className="custom">
             <label>
@@ -276,6 +286,7 @@ function Setup({
         </button>
         {!section && <span className="muted">Pick your section.</span>}
         {section && !preset && <span className="muted">Pick an activity.</span>}
+        {section && preset?.review && !pool && <span className="muted">Unlock the project pool first.</span>}
         {err && <span className="error">{err}</span>}
       </div>
       <p className="setup-foot">
@@ -312,6 +323,7 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
     .map(([id]) => id)
     .sort((x, y) => (assignable(preset) ? (view.posts[x].choice ?? 99) - (view.posts[y].choice ?? 99) : 0));
   const blocker = revealBlocker(view);
+  const [pool, setPool] = useState(host.pool);
   const [spot, setSpot] = useState<number | null>(null);
   const [showQr, setShowQr] = useState(false);
   const [joinPanel, setJoinPanel] = useState(true);
@@ -335,7 +347,7 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
     try {
       const photos: Record<string, string | null> = {};
       await Promise.all(postedIds.filter((id) => view.posts[id].photo).map(async (id) => (photos[id] = await host.photo(id))));
-      download(exportFileName(preset, view.pub), buildWallHtml({preset, pub: view.pub, teams, posts: view.posts, photos}));
+      download(exportFileName(preset, view.pub), buildWallHtml({preset, pub: view.pub, teams, posts: view.posts, photos, review: view.review, rkey: view.rkey}));
       setSaved(true);
     } finally {
       setSaving(false);
@@ -343,8 +355,9 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
   }
 
   async function finish() {
-    const msg =
-      saved || !postedIds.length || !shown
+    const msg = preset.review
+      ? `Finish this Ladpet? Phones will show "This wall has ended". Peer reviews are private — they are NOT put on the boards site${saved ? '' : ', so press Save the Ladpet first if you want your own copy'}.`
+      : saved || !postedIds.length || !shown
         ? 'Finish this Ladpet? Phones will show "This wall has ended". Its board appears on the boards site within about 15 minutes.'
         : 'Finish this Ladpet? Phones will show "This wall has ended". Its posts are saved to the boards site within about 15 minutes (Save the Ladpet is only for your own copy).';
     if (!confirm(msg)) return;
@@ -386,7 +399,9 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
         <li>Scan the Ladpet QR</li>
         <li>Type everyone's nicknames — or tap your name if your {preset.who === 'pair' ? 'partner' : 'group'} is already in</li>
         <li>
-          {preset.id === 'wk13-spot9'
+          {preset.review
+            ? "Ladpet gives your group another section's Final Project — mark every sentence, then post"
+            : preset.id === 'wk13-spot9'
             ? 'Post one marked screenshot per pair'
             : preset.companies
               ? `Ladpet gives your pair a company and ${preset.fields?.items.length === 2 ? 'two' : 'six'} charts — a sentence per chart, then post`
@@ -449,6 +464,17 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
         </div>
       </header>
 
+      {preset.review && !ro && !pool && (
+        <div className="pool-bar">
+          <PoolUnlock
+            compact
+            onPool={(p) => {
+              host.setPool(p);
+              setPool(p);
+            }}
+          />
+        </div>
+      )}
       {live ? (
         // Custom wall: posts show as they arrive (Mew, 22 Oct 2026) — the QR stays beside the wall until hidden
         <div className={`live ${joinPanel ? 'with-join' : ''}`}>
@@ -512,6 +538,8 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
                 const done = isPosted(view.posts[id]);
                 const who = membersLine(t.name, t.members);
                 const c = assignable(preset) ? view.assign[id] : undefined;
+                const handed = preset.review ? Object.keys(view.review[id] ?? {}).length : 0;
+                const co = preset.review ? parseJson<Handout>(view.review[id]?.['0'])?.co : undefined;
                 return (
                   <button
                     key={id}
@@ -525,6 +553,7 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
                     <span className="tile-state">
                       {done ? '✓ posted' : 'writing…'}
                       {c !== undefined && <span className="tile-chart"> · {preset.companies ? preset.companies[c]?.name : `chart ${c + 1}`}</span>}
+                      {co && <span className="tile-chart"> · {co}{handed > 1 ? ` +${handed - 1}` : ''}</span>}
                     </span>
                   </button>
                 );
@@ -660,7 +689,7 @@ function Spotlight({
         <div className="spot-text">
           <div className="spot-name">{t.name}</div>
           {membersLine(t.name, t.members) && <div className="spot-members">{membersLine(t.name, t.members)}</div>}
-          <PostBody post={p} preset={preset} big chart />
+          {preset.review ? <ReviewDetail post={p} review={view.review[id]} rkey={view.rkey[id]} /> : <PostBody post={p} preset={preset} big chart />}
           <div className="spot-nav">
             <button className="btn" onClick={() => onIndex((index - 1 + ids.length) % ids.length)}>
               ← Back

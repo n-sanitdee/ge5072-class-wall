@@ -121,6 +121,7 @@ const PHOTO_ROOM = 1400;
 const CHARTS_ROOM = 6 * 260;
 
 export function itemFor(id: string, post: Post, preset?: Preset): Item {
+  if (preset?.review) return {id, photo: false, chars: 90 * Math.max(1, ['f0', 'f1', 'f2'].filter((k) => post.fields?.[k]).length)};
   const chars =
     (post.text?.length ?? 0) +
     Object.entries(post.fields ?? {}).reduce((n, [k, v]) => n + (k.startsWith('f') ? v.length : 0), 0) +

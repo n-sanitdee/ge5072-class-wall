@@ -41,6 +41,17 @@ def media(maxlen):
     }
 
 
+def review_part():
+    return {
+        ".read": HOST_OR_SHOWN,
+        ".write": H,
+        "$tid": {
+            ".read": True,
+            "$k": {".validate": "$k.matches(/^[0-2]$/) && newData.isString() && newData.val().length <= 30000"},
+        },
+    }
+
+
 WALLS = {
     "wallIndex": {
         ".read": "auth != null && query.orderByChild == 'createdAt' && query.limitToFirst <= 100",
@@ -120,6 +131,10 @@ WALLS = {
                     ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 9 && newData.val() % 1 == 0",
                 },
             },
+            # Wk16 peer review (20 Nov 2026): the host hands each group a project (review) and, once the group has
+            # posted it, Mew's marks for it (rkey); k = the group's 1st-3rd project. A group reads only its own.
+            "review": review_part(),
+            "rkey": review_part(),
             "posts": {
                 ".read": HOST_OR_SHOWN,
                 "$tid": {
