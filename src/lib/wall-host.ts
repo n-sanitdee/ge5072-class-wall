@@ -14,7 +14,7 @@ import {
 } from 'firebase/database';
 import {assignable, getPreset} from './presets.ts';
 import {MAX_PROJECTS, type Handout, type Pool, type Summary, compare, handoutOf, keyOf, nextProject, parseJson, parseMarks, scoreOf} from './review.ts';
-import {type Post, type PresetId, type Pub, type RosterRow, STALE_MS, type Team, isPosted} from './types.ts';
+import {type Post, type PresetId, type Pub, REVIEW_STALE_MS, type RosterRow, STALE_MS, type Team, isPosted} from './types.ts';
 
 export type HostView = {
   code: string;
@@ -164,15 +164,24 @@ export class WallHost {
 
   /** Delete walls older than `olderThan` (anyone signed in may once they are 3 h old, see database.rules.json).
    *  The boards archiver deletes walls at 3 h after saving them; the host page and the hourly job only catch
-   *  what it missed, so they wait FALLBACK_STALE_MS. Returns how many. */
+   *  what it missed, so they wait FALLBACK_STALE_MS. Peer-review walls (never on the boards site) wait
+   *  REVIEW_STALE_MS, so the after-class copy to Mew's folder can still find them. Returns how many. */
   static async cleanupStale(db: Database, serverNow: number, olderThan = STALE_MS): Promise<number> {
     const q = query(ref(db, 'wallIndex'), orderByChild('createdAt'), endAt(serverNow - olderThan - 60_000), limitToFirst(100));
     const snap = await get(q);
-    const doomed: Record<string, null> = {};
+    const found: [string, number][] = [];
     snap.forEach((c) => {
-      doomed[`walls/${c.key}`] = null;
-      doomed[`wallIndex/${c.key}`] = null;
+      found.push([c.key!, (c.val() as {createdAt?: number} | null)?.createdAt ?? 0]);
     });
+    const doomed: Record<string, null> = {};
+    for (const [code, createdAt] of found) {
+      if (createdAt > serverNow - REVIEW_STALE_MS - 60_000) {
+        const preset = (await get(ref(db, `walls/${code}/pub/preset`)).catch(() => null))?.val() as string | null;
+        if (preset && getPreset(preset).review) continue;
+      }
+      doomed[`walls/${code}`] = null;
+      doomed[`wallIndex/${code}`] = null;
+    }
     if (Object.keys(doomed).length) await update(ref(db), doomed);
     return Object.keys(doomed).length / 2;
   }

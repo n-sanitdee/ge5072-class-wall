@@ -46,7 +46,8 @@ once the group has posted it, `rkey/<tid>/<k>` (Mew's marks) and a summary in th
 [`src/lib/review.ts`](src/lib/review.ts). Each section gets projects in a planned order (never its own section, the
 first groups of all six classes on different projects, projects with deductions first). These walls are **never
 published** on the boards site; [`scripts/collect-reviews.ts`](scripts/collect-reviews.ts) copies them to Mew's
-OneDrive within 6 hours of class. Test: `tests/tmp/review-flow.ts`.
+OneDrive after each class (one-time scheduled tasks `ge5072-wk16-collect-<sec>` on her Mac), and the clean-up keeps
+them for 24 hours instead of 6 (`REVIEW_STALE_MS`) so a late run still finds them. Test: `tests/tmp/review-flow.ts`.
 
 ## Host guide
 

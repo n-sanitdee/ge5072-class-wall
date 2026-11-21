@@ -63,6 +63,9 @@ export type Draft = {
 export const STALE_MS = 3 * 60 * 60 * 1000;
 /** Fallback clean-up (host page, hourly job): later than the boards archiver, so a wall is saved before it goes. */
 export const FALLBACK_STALE_MS = 6 * 60 * 60 * 1000;
+/** Week 16 peer-review walls wait a day instead (Mew, 21 Nov 2026): scripts/collect-reviews.ts copies them to her
+ *  private folder after class, and a scheduled run on her Mac can start hours late. */
+export const REVIEW_STALE_MS = 24 * 60 * 60 * 1000;
 
 /** Limits shared by the phone, the host and database.rules.json. Answers have no length limit (Mew, 27 Oct 2026). */
 export const LIMITS = {

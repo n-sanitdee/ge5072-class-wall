@@ -290,9 +290,10 @@ function Setup({
         {err && <span className="error">{err}</span>}
       </div>
       <p className="setup-foot">
-        Students scan the Ladpet QR on the next screen and type their nicknames — no student IDs. When you press
-        Finish (or close joining), the posts are saved to the boards site within about 15 minutes; the wall itself is
-        deleted 3 hours after it was opened.
+        Students scan the Ladpet QR on the next screen and type their nicknames — no student IDs.{' '}
+        {preset?.review
+          ? 'Peer reviews are private: they never go on the boards site. They are copied to your OneDrive after class, and the wall is deleted a day after it was opened.'
+          : 'When you press Finish (or close joining), the posts are saved to the boards site within about 15 minutes; the wall itself is deleted 3 hours after it was opened.'}
       </p>
     </div>
   );
