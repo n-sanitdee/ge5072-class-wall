@@ -1,15 +1,17 @@
-// Week 16 peer review on the projector (Mew, 20 Nov 2026): unlocking the project pool, and one group's marks next
-// to Ajarn's for the big view.
+// Week 16 peer review on the projector: loading the project pool, and one group's version next to Ajarn's for the
+// big view. The pool unlocks by itself (23 Nov 2026, Mew: no passcode box): the teacher link carries the passphrase
+// once (#host?k=…, see main.tsx), and this computer remembers it.
 import {type FormEvent, useEffect, useState} from 'react';
 import {autoUnlock, cachedPool, forgetPass, unlockPool} from '../lib/pool.ts';
-import {type Handout, type KeyOut, MAX_PROJECTS, type Pool, agrees, compare, fmt, parseJson, parseMarks, scoreOf} from '../lib/review.ts';
+import {type Handout, type KeyOut, MAX_PROJECTS, type Pool, parseJson, shotKey, shotsOf, textKey} from '../lib/review.ts';
 import type {Post} from '../lib/types.ts';
-import {Chips} from '../student/Review.tsx';
+import {Versions} from '../student/Review.tsx';
 
-/** "Project pool: ✓ unlocked" or the passphrase box. The passphrase is typed once per computer. */
+/** "✓ Projects ready" — or, on a computer that has not opened the teacher link yet, a line saying so. */
 export function PoolUnlock({onPool, compact}: {onPool: (p: Pool | null) => void; compact?: boolean}) {
   const [pool, setPool] = useState<Pool | null>(cachedPool());
   const [pass, setPass] = useState('');
+  const [typing, setTyping] = useState(false);
   const [state, setState] = useState<'' | 'trying' | 'busy' | 'wrong' | 'error'>(cachedPool() ? '' : 'trying');
   const [msg, setMsg] = useState('');
   useEffect(() => {
@@ -40,102 +42,69 @@ export function PoolUnlock({onPool, compact}: {onPool: (p: Pool | null) => void;
     } catch (x) {
       const wrong = (x as Error).message === 'wrong-passphrase';
       setState(wrong ? 'wrong' : 'error');
-      setMsg(wrong ? 'Wrong passphrase.' : (x as Error).message);
+      setMsg(wrong ? 'That does not open the projects.' : (x as Error).message);
     }
   }
 
   if (pool)
     return (
       <div className={`pool-ok ${compact ? 'compact' : ''}`}>
-        ✓ Project pool unlocked — {pool.projects.length} Final Projects (pool built {pool.built})
+        ✓ {pool.projects.length} Final Projects ready
         <button
           type="button"
           className="link"
+          title="Forget the projects on this computer"
           onClick={() => {
             forgetPass();
             setPool(null);
             onPool(null);
           }}
         >
-          Lock
+          Forget on this computer
         </button>
       </div>
     );
-  if (state === 'trying') return <div className="pool-ok compact muted">Unlocking the project pool…</div>;
+  if (state === 'trying') return <div className="pool-ok compact muted">Loading the projects…</div>;
   return (
-    <form className={`pool-unlock ${compact ? 'compact' : ''}`} onSubmit={submit}>
-      <label>
-        <span>Project pool passphrase</span>
-        <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} autoComplete="off" placeholder="xxxx-xxxx-xxxx" />
-      </label>
-      <button className="btn primary" disabled={state === 'busy'}>
-        {state === 'busy' ? 'Unlocking…' : 'Unlock'}
-      </button>
-      {msg && <span className="error">{msg}</span>}
-      <p className="muted">
-        Once per computer. It is in README_TEACHER_ONLY.md (OneDrive › Teaching › Assignments › PeerReview_Wk16). Groups get their projects as soon as the pool is unlocked.
+    <div className={`pool-unlock ${compact ? 'compact' : ''}`}>
+      <p>
+        <b>Open Ladpet from your teacher link</b> to load the Final Projects on this computer — it is in README_TEACHER_ONLY.md (OneDrive › Teaching › Assignments ›
+        PeerReview_Wk16). After that, this computer remembers.
       </p>
-    </form>
+      {!typing ? (
+        <button type="button" className="link" onClick={() => setTyping(true)}>
+          No link here? Type the passcode instead
+        </button>
+      ) : (
+        <form onSubmit={submit}>
+          <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} autoComplete="off" placeholder="passcode" autoFocus />
+          <button className="btn primary" disabled={state === 'busy'}>
+            {state === 'busy' ? 'Loading…' : 'Load the projects'}
+          </button>
+          {msg && <span className="error">{msg}</span>}
+        </form>
+      )}
+    </div>
   );
 }
 
-/** The big view: each project this group marked, every sentence with the group's marks and Ajarn's. */
+/** The big view: each project this group posted — the group's version next to Ajarn's. */
 export function ReviewDetail({post, review, rkey}: {post: Post; review?: Record<string, string>; rkey?: Record<string, string>}) {
   const projects = [];
   for (let k = 0; k < MAX_PROJECTS; k++) {
     const h = parseJson<Handout>(review?.[k]);
     if (!h || !post.fields?.[`f${k}`]) continue;
-    projects.push({k, h, marks: parseMarks(post.fields[`b${k}`]), key: parseJson<KeyOut>(rkey?.[k])});
+    projects.push({k, h, key: parseJson<KeyOut>(rkey?.[k])});
   }
   if (!projects.length) return <p className="muted">No project posted yet.</p>;
   return (
     <div className="rv-detail">
-      {projects.map(({k, h, marks, key}) => {
-        const sc = scoreOf(marks.p, marks.t, h.p.length, h.t.length).score;
-        const cmp = key ? compare(h, marks, key) : null;
-        return (
-          <section key={k} className="rv-detail-project">
-            <h3>
-              {h.co}
-              <span className="rv-detail-scores">
-                group <b>{fmt(sc)}</b> · Ajarn <b>{fmt(key?.score)}</b>
-                {cmp && (
-                  <>
-                    {' '}
-                    · same on {cmp.agree}/{cmp.of}
-                  </>
-                )}
-              </span>
-            </h3>
-            <table>
-              <tbody>
-                {(['p', 't'] as const).flatMap((box) =>
-                  (box === 'p' ? h.p : h.t).map((t, i) => {
-                    const m = marks[box][i];
-                    const kk = key?.[box][i];
-                    const same = key ? agrees(m, kk?.k) : true;
-                    return (
-                      <tr key={`${box}${i}`} className={same ? '' : 'differ'}>
-                        <th>{`${box.toUpperCase()}${i + 1}`}</th>
-                        <td className="rv-d-text">{t}</td>
-                        <td className="rv-d-marks">
-                          <Chips k={m} />
-                          {m?.fix && <div className="rv-fix-shown">→ {m.fix}</div>}
-                        </td>
-                        <td className="rv-d-marks">
-                          {key && <Chips k={kk?.k} />}
-                          {kk?.n && <div className="rv-ajarn-note">{kk.n}</div>}
-                        </td>
-                      </tr>
-                    );
-                  }),
-                )}
-              </tbody>
-            </table>
-            {key?.note && <p className="rv-note">{key.note}</p>}
-          </section>
-        );
-      })}
+      {projects.map(({k, h, key}) => (
+        <section key={k} className="rv-detail-project">
+          <h3>{h.co}</h3>
+          <Versions h={h} text={post.fields?.[textKey(k)]} shots={shotsOf(post.fields?.[shotKey(k)])} keyOut={key} big />
+        </section>
+      ))}
     </div>
   );
 }

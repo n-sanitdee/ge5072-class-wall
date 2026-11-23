@@ -353,8 +353,9 @@ export const PRESETS: Preset[] = [
     steps: BRAIN14_STEPS,
     tip: 'These are the six trend sentences for your Final Project.',
   },
-  // ── Week 16 · Peer Review: Final Project (Mew, 20 Nov 2026) — each project group marks ANOTHER section's Final
-  // Project (6 profile + 6 trend sentences) with the /8 rule, posts, then compares with Ajarn's marks. The projects
+  // ── Week 16 · Peer Review: Final Project (Mew, 20 Nov 2026) — each project group fixes ANOTHER section's Final
+  // Project, posts, then sees its version next to Ajarn's. 23 Nov 2026 (Mew, after CA48): a paragraph to screenshot,
+  // mark up and upload (or paste into a box and fix) — no per-sentence marks, no error types, no scores. The projects
   // come from the encrypted pool (public/wk16/pool.enc.json) that the teacher's projector unlocks. ──
   {
     id: 'wk16-review',
@@ -365,11 +366,11 @@ export const PRESETS: Preset[] = [
     theme: 'indigo',
     photo: false,
     review: true,
-    intro: 'Ladpet gives your group the Final Project of a group from another section. Mark it the way Ajarn does.',
-    introTh: 'Ladpet จะให้งาน Final Project ของกลุ่มจากเซกชันอื่นกับกลุ่มของคุณ ให้คะแนนแบบที่อาจารย์ให้',
+    intro: 'Ladpet gives your group the Final Project of a group from another section. Find the mistakes and fix them.',
+    introTh: 'Ladpet จะให้งาน Final Project ของกลุ่มจากเซกชันอื่นกับกลุ่มของคุณ หาคำที่ผิดแล้วแก้ไข',
     steps: [
-      {label: 'GROUP', time: '15 min', text: 'Read every sentence together. Mark each one: ✓ if it is correct, or tap what is wrong and write the fix.'},
-      {label: 'POST', time: '1 min', text: 'Post your marks. Then your phone shows Ajarn’s marks for the same sentences — how close were you?'},
+      {label: 'GROUP', time: '15 min', text: 'Screenshot the paragraph, write your fixes on the screenshot, and upload it (or paste the paragraph in the box and fix it).'},
+      {label: 'POST', time: '1 min', text: 'Post it. Then your phone shows your version next to Ajarn’s — how close were you?'},
     ],
     tip: 'Finished early? Ladpet gives you another project.',
   },

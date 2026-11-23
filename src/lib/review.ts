@@ -29,6 +29,47 @@ export type Summary = {co: string; sc: number; aj?: number; agree?: number; of?:
 export const MAX_PROJECTS = 3;
 export const NEEDED = 6;
 
+// ── 23 Nov 2026 redesign (Mew, after CA48): no per-sentence marks and no error types. The group sees the project as a
+// paragraph, and either pastes it into a box and fixes it, or screenshots it, writes the fixes on the screenshot and
+// uploads it (or both). After posting, it sees its own version next to Ajarn's (her notes on the sentences she
+// marked) — no scores. Fields: b<k+6> = the fixed text, b<k+3> = the screenshots (JSON list), f<k> = {co} when
+// posted. b0–b2 (the old marks) are only on walls from before this change.
+export const textKey = (k: number) => `b${k + 6}`;
+export const shotKey = (k: number) => `b${k + 3}`;
+export const SHOT_CHARS = 1_400_000;
+export const MAX_SHOTS = 3;
+
+/** b<k+3>: a JSON list of JPEG data URLs (a long project needs more than one screenshot). */
+export function shotsOf(raw: string | undefined | null): string[] {
+  if (!raw) return [];
+  if (raw.startsWith('data:image/')) return [raw];
+  const list = parseJson<unknown>(raw);
+  return Array.isArray(list) ? list.filter((s): s is string => typeof s === 'string' && s.startsWith('data:image/jpeg;base64,')) : [];
+}
+
+/** The project as the group sees it: the Company Profile paragraph, then the Describing Trends paragraph. */
+export function paragraphs(h: Handout): {p: string; t: string} {
+  return {p: h.p.join(' '), t: h.t.join(' ')};
+}
+
+/** What "Copy the paragraph" puts on the clipboard: both paragraphs, a blank line between them. */
+export function copyText(h: Handout): string {
+  const {p, t} = paragraphs(h);
+  return [p, t].filter(Boolean).join('\n\n');
+}
+
+/** Ajarn's version: every sentence, with her note when she marked it (numbered in order). */
+export function ajarnUnits(h: Handout, key: KeyOut): {box: 'p' | 't'; text: string; note?: string; n?: number}[] {
+  let n = 0;
+  return (['p', 't'] as const).flatMap((box) =>
+    (box === 'p' ? h.p : h.t).map((text, i) => {
+      const u = key[box][i];
+      const marked = hasProblem(u?.k) || !!u?.n;
+      return marked ? {box, text, note: u?.n || 'Ajarn marked a mistake here.', n: ++n} : {box, text};
+    }),
+  );
+}
+
 export type TagCode = 'g' | 's' | 'u' | 'o' | 'x';
 export const TAGS: {c: TagCode; en: string; th: string; pts: string}[] = [
   {c: 'g', en: 'Grammar', th: 'ไวยากรณ์', pts: '−0.5 each'},

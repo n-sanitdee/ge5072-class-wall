@@ -1,7 +1,10 @@
 // Phone side of a wall. The student screen and the load test both use it.
-import {type Database, type Unsubscribe, get, onValue, ref, runTransaction, serverTimestamp, update} from 'firebase/database';
+import type {FirebaseApp} from 'firebase/app';
+import {type Database, type Unsubscribe, get, limitToFirst, onValue, orderByChild, query, ref, runTransaction, serverTimestamp, update} from 'firebase/database';
+import {type Backend, signInHost} from './fb.ts';
 import {merge3} from './merge.ts';
 import {type Marks, mergeMarks, parseMarks} from './review.ts';
+import {getPreset} from './presets.ts';
 import {type Draft, LIMITS, type Post, type Pub, type Team} from './types.ts';
 
 export type JoinError = 'not-found' | 'locked' | 'revealed' | 'ended' | 'taken' | 'removed' | 'gone' | 'network';
@@ -59,6 +62,28 @@ function denied(e: unknown): boolean {
 }
 
 /** Read a wall's public part; null = no such wall. Throws on network trouble. */
+/**
+ * The slide QR (Mew, 23 Nov 2026: "put the QR code in the slide"): one fixed link, ?a=wk16, that finds the wall of
+ * that activity open right now — the wall code changes every class, so a printed QR cannot carry it. Needs an
+ * anonymous sign-in, because only signed-in users may list wallIndex. Newest first; ended walls and walls older
+ * than 5 hours are left out.
+ */
+export async function findOpenWalls(db: Database, app: FirebaseApp, backend: Backend, preset: string): Promise<{code: string; pub: Pub; createdAt: number}[]> {
+  await signInHost(app, backend);
+  const snap = await get(query(ref(db, 'wallIndex'), orderByChild('createdAt'), limitToFirst(100)));
+  const rows: [string, number][] = [];
+  snap.forEach((c) => {
+    rows.push([c.key!, (c.val() as {createdAt?: number})?.createdAt ?? 0]);
+  });
+  const since = Date.now() - 5 * 3600_000;
+  const found = await Promise.all(
+    rows.filter(([, at]) => at > since).map(async ([code, createdAt]) => ({code, createdAt, pub: await peekWall(db, code).catch(() => null)})),
+  );
+  return found
+    .filter((w): w is {code: string; pub: Pub; createdAt: number} => !!w.pub && w.pub.preset === preset && !w.pub.ended)
+    .sort((a, b) => b.createdAt - a.createdAt);
+}
+
 export async function peekWall(db: Database, code: string): Promise<Pub | null> {
   if (!/^\d{6}$/.test(code)) return null;
   const s = await get(ref(db, `walls/${code}/pub`));
@@ -215,7 +240,8 @@ export class WallClient {
     on<boolean>('.info/connected', (c) => this.patch({connected: !!c}));
     on<Pub>(`${this.base}/pub`, (pub) => {
       this.patch({pub});
-      if (pub?.revealed || pub?.live) this.watchWall();
+      // Wk16 peer review: each phone only needs its own post (screenshots live in the posts), never the whole wall
+      if ((pub?.revealed || pub?.live) && !getPreset(pub.preset).review) this.watchWall();
     });
     on<Record<string, Team>>(`${this.base}/teams`, (teams) => this.patch({groups: teams ?? {}, teams: teams ?? {}}));
     if (this.tid) this.watchMine();
@@ -296,6 +322,13 @@ export class WallClient {
       {applyLocally: false},
     );
     return parseMarks(res.snapshot.val() as string | null);
+  }
+
+  /** Wk16: change one field from its current value (a transaction, so two phones adding screenshots both count). */
+  async updateField(key: string, fn: (cur: string | null) => string | null): Promise<string> {
+    await this.ensurePost();
+    const res = await runTransaction(ref(this.db, `${this.mineBase}/fields/${key}`), (cur: string | null) => fn(cur), {applyLocally: false});
+    return (res.snapshot.val() as string | null) ?? '';
   }
 
   /** Wk16: "Post on Ladpet" for project k — fields.f<k> = {co, sc}; the first one also marks the post as posted. */

@@ -41,6 +41,17 @@ export function autoUnlock(): Promise<Pool | null> {
   });
 }
 
+/** The teacher link (#host?k=…): remember the passphrase; the pool is unlocked when the host page needs it. */
+export function rememberPass(pass: string) {
+  if (!pass.trim()) return;
+  if (cached) cached = null;
+  try {
+    localStorage.setItem(PASS, pass.trim());
+  } catch {
+    /* private window: the passcode can still be typed */
+  }
+}
+
 export function forgetPass() {
   cached = null;
   try {

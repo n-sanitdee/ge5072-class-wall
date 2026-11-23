@@ -1,26 +1,23 @@
-// Week 16 · Peer Review: Final Project — the group's phone (Mew, 20 Nov 2026). Ladpet hands the group another
-// section's project; the group marks every sentence (✓ or what is wrong, with the fix), posts, and then sees
-// Ajarn's marks for the same sentences. Up to three projects per group. See src/lib/review.ts for the data.
+// Week 16 · Peer Review: Final Project — the group's phone. Ladpet hands the group another section's project as a
+// paragraph. Redesign (Mew, 23 Nov 2026, after CA48): no per-sentence marks and no error types — the group either
+// screenshots the paragraph, writes the fixes on the screenshot and uploads it, or copies the paragraph into the box
+// and fixes it there (or both). After posting, the phone shows the group's version next to Ajarn's. Up to three
+// projects per group. See src/lib/review.ts for the data.
 import {useCallback, useEffect, useRef, useState} from 'react';
+import {ImageError, prepareImage} from '../lib/image.ts';
 import {
   type Handout,
-  type Key,
   type KeyOut,
   MAX_PROJECTS,
-  type Mark,
-  type Marks,
-  NEEDED,
-  TAGS,
-  type TagCode,
-  agrees,
-  compare,
-  fmt,
-  hasProblem,
-  isMarked,
-  mergeMarks,
+  MAX_SHOTS,
+  SHOT_CHARS,
+  ajarnUnits,
+  copyText,
+  paragraphs,
   parseJson,
-  parseMarks,
-  scoreOf,
+  shotKey,
+  shotsOf,
+  textKey,
 } from '../lib/review.ts';
 import type {WallClient, WallState} from '../lib/wall-client.ts';
 import {Bi, Spinner} from '../ui/common.tsx';
@@ -37,7 +34,7 @@ export function ReviewComposer({client, st}: {client: WallClient; st: WallState}
   const [tab, setTab] = useState<number | null>(null);
   const start = firstOpen >= 0 ? firstOpen : Math.max(0, handouts.length - 1);
   // Pick the project once (the first one not posted yet); after that only the group moves on ("Next project"), so a
-  // new project arriving never pulls the screen away from Ajarn's marks.
+  // new project arriving never pulls the screen away from Ajarn's version.
   useEffect(() => {
     if (tab === null && handouts.length) setTab(start);
   }, [tab, handouts.length, start]);
@@ -71,7 +68,8 @@ export function ReviewComposer({client, st}: {client: WallClient; st: WallState}
         client={client}
         k={k}
         h={handouts[k]}
-        raw={st.mine?.fields?.[`b${k}`]}
+        rawText={st.mine?.fields?.[textKey(k)]}
+        shots={shotsOf(st.mine?.fields?.[shotKey(k)])}
         posted={posted(k)}
         keyOut={parseJson<KeyOut>(st.rkey?.[k])}
         next={k + 1 < handouts.length ? () => setTab(k + 1) : undefined}
@@ -80,45 +78,45 @@ export function ReviewComposer({client, st}: {client: WallClient; st: WallState}
   );
 }
 
-const SAVE_DELAY = 500;
+const SAVE_DELAY = 600;
 
-function Project({client, k, h, raw, posted, keyOut, next}: {client: WallClient; k: number; h: Handout; raw: string | undefined; posted: boolean; keyOut: KeyOut | null; next?: () => void}) {
-  const remote = parseMarks(raw);
-  const [marks, setMarks] = useState<Marks>(remote);
+function Project({client, k, h, rawText, shots, posted, keyOut, next}: {client: WallClient; k: number; h: Handout; rawText: string | undefined; shots: string[]; posted: boolean; keyOut: KeyOut | null; next?: () => void}) {
+  const remote = rawText ?? '';
+  const [text, setText] = useState(remote);
   const [saveState, setSaveState] = useState<'' | 'saving' | 'saved' | 'error'>('');
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<'' | 'post' | 'shot'>('');
   const [err, setErr] = useState<[string, string] | null>(null);
-  const synced = useRef(JSON.stringify(remote));
-  const marksRef = useRef(marks);
-  marksRef.current = marks;
+  const synced = useRef(remote);
+  const textRef = useRef(text);
+  textRef.current = text;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const running = useRef<Promise<void> | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  // a co-editor's marks: take them when nothing is waiting to be saved here
+  // a co-editor's typing: take it when nothing is waiting to be saved here
   useEffect(() => {
-    const r = JSON.stringify(parseMarks(raw));
-    if (r === synced.current) return;
-    if (JSON.stringify(marksRef.current) === synced.current && !running.current) {
-      synced.current = r;
-      setMarks(parseMarks(raw));
+    if (remote === synced.current) return;
+    if (textRef.current === synced.current && !running.current) {
+      synced.current = remote;
+      setText(remote);
     }
-  }, [raw]);
+  }, [remote]);
 
   const flush = useCallback(async () => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
     while (running.current) await running.current;
-    const local = marksRef.current;
-    if (JSON.stringify(local) === synced.current) return;
+    const local = textRef.current;
+    if (local === synced.current) return;
     let done!: () => void;
     running.current = new Promise<void>((r) => (done = r));
     setSaveState('saving');
     try {
-      const saved = await client.saveMarks(k, parseMarks(synced.current), local);
-      synced.current = JSON.stringify(saved);
-      // keep anything tapped here while the save was on its way
-      const now = mergeMarks(local, marksRef.current, saved);
-      if (JSON.stringify(now) !== JSON.stringify(marksRef.current)) setMarks(now);
+      const base = synced.current;
+      const saved = await client.saveField(textKey(k), base, local, true);
+      synced.current = saved;
+      // a co-editor's text came in with the merge: show it, unless more was typed here meanwhile
+      if (textRef.current === local && saved !== local) setText(saved);
       setSaveState('saved');
     } catch (e) {
       setSaveState('error');
@@ -130,10 +128,10 @@ function Project({client, k, h, raw, posted, keyOut, next}: {client: WallClient;
   }, [client, k]);
 
   useEffect(() => {
-    if (JSON.stringify(marks) === synced.current) return;
+    if (text === synced.current) return;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => void flush().catch(() => {}), SAVE_DELAY);
-  }, [marks, flush]);
+  }, [text, flush]);
   useEffect(() => {
     const out = () => void flush().catch(() => {});
     window.addEventListener('pagehide', out);
@@ -142,30 +140,51 @@ function Project({client, k, h, raw, posted, keyOut, next}: {client: WallClient;
       if (timer.current) void flush().catch(() => {});
     };
   }, [flush]);
-  useEffect(() => setErr(null), [marks]);
+  useEffect(() => setErr(null), [text, shots.length]);
 
-  const set = (box: 'p' | 't', i: number, m: Mark) =>
-    setMarks((all) => {
-      const list = [...all[box]];
-      while (list.length <= i) list.push({});
-      list[i] = m;
-      return {...all, [box]: list};
-    });
+  async function pickShot(file: File | undefined) {
+    if (fileRef.current) fileRef.current.value = '';
+    if (!file) return;
+    setBusy('shot');
+    setErr(null);
+    try {
+      const {full} = await prepareImage(file);
+      if (full.length > SHOT_CHARS) throw new ImageError('too-big');
+      await client.updateField(shotKey(k), (cur) => JSON.stringify([...shotsOf(cur), full].slice(-MAX_SHOTS)));
+    } catch (x) {
+      setErr(
+        x instanceof ImageError
+          ? ['That picture could not be used — try a normal screenshot (PNG or JPG).', 'ใช้รูปนี้ไม่ได้ ลองใช้ภาพหน้าจอปกติ (PNG หรือ JPG)']
+          : ['Could not upload — check your internet and try again.', 'อัปโหลดไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่'],
+      );
+    }
+    setBusy('');
+  }
 
-  const mine = scoreOf(marks.p, marks.t, h.p.length, h.t.length);
-  const unmarked = [...h.p.map((_, i) => (isMarked(marks.p[i]) ? '' : `P${i + 1}`)), ...h.t.map((_, i) => (isMarked(marks.t[i]) ? '' : `T${i + 1}`))].filter(Boolean);
-  const locked = posted;
+  async function removeShot(i: number) {
+    const gone = shots[i];
+    setBusy('shot');
+    try {
+      await client.updateField(shotKey(k), (cur) => {
+        const left = shotsOf(cur).filter((s) => s !== gone);
+        return left.length ? JSON.stringify(left) : null;
+      });
+    } catch {
+      setErr(['Could not remove it — check your internet.', 'ลบไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต']);
+    }
+    setBusy('');
+  }
 
   async function post() {
-    if (unmarked.length)
+    if (!shots.length && !text.trim())
       return setErr([
-        `Mark every sentence first: ${unmarked.join(', ')} ${unmarked.length === 1 ? 'is' : 'are'} not marked yet (✓ or a problem).`,
-        `ให้คะแนนให้ครบทุกประโยคก่อน: ${unmarked.join(', ')} ยังไม่ได้เลือก (✓ หรือข้อผิดพลาด)`,
+        'Upload your marked screenshot, or paste the paragraph in the box and fix it — then post.',
+        'อัปโหลดภาพหน้าจอที่เขียนแก้แล้ว หรือวางย่อหน้าในช่องแล้วแก้ไข แล้วจึงโพสต์',
       ]);
-    setBusy(true);
+    setBusy('post');
     try {
       await flush();
-      await client.postProject(k, JSON.stringify({co: h.co, sc: mine.score}));
+      await client.postProject(k, JSON.stringify({co: h.co}));
     } catch (x) {
       const denied = String((x as {code?: string})?.code ?? x).toLowerCase().includes('permission');
       setErr(
@@ -174,256 +193,213 @@ function Project({client, k, h, raw, posted, keyOut, next}: {client: WallClient;
           : ['Could not post — check your internet and try again.', 'โพสต์ไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่'],
       );
     }
-    setBusy(false);
+    setBusy('');
   }
 
-  const cmp = keyOut ? compare(h, marks, keyOut) : null;
   return (
     <section className="rv-project card-like">
       <div className="rv-head">
         <div className="rv-kicker">
           Project {k + 1} · from another section <span className="th" lang="th">· งานของกลุ่มจากเซกชันอื่น</span>
         </div>
-        <h2 className="rv-co">{h.co}</h2>
-        {!locked && (
+        {!posted && (
           <span className={`save-state ${saveState}`}>
             {saveState === 'saving' ? 'Saving…' : saveState === 'error' ? 'Not saved — check your internet' : saveState === 'saved' ? 'Saved ✓' : ''}
           </span>
         )}
       </div>
 
-      {locked && (
-        <div className="rv-result">
-          {keyOut && cmp ? (
-            <>
-              <div className="rv-scores">
-                <div>
-                  <span className="rv-score-label">Your marks</span>
-                  <b>{fmt(mine.score)}</b>/8
-                </div>
-                <div className="rv-vs">vs</div>
-                <div>
-                  <span className="rv-score-label">Ajarn</span>
-                  <b>{fmt(keyOut.score)}</b>/8
+      {!posted ? (
+        <>
+          <ol className="rv-how">
+            <li>
+              <Bi en="Screenshot the paragraph below (two screenshots if it is long)." th="แคปหน้าจอย่อหน้าด้านล่าง (ถ้ายาว แคป 2 รูปได้)" />
+            </li>
+            <li>
+              <Bi en="Write your fixes on the screenshot (Photos → Edit → Markup)." th="เขียนคำที่แก้ลงบนภาพหน้าจอ (รูปภาพ → แก้ไข → มาร์กอัป)" />
+            </li>
+            <li>
+              <Bi en="Upload it here, then post." th="อัปโหลดที่นี่ แล้วโพสต์" />
+            </li>
+          </ol>
+          <Paragraph h={h} />
+          <CopyButton text={copyText(h)} />
+
+          <div className="rv-shot">
+            <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => pickShot(e.target.files?.[0])} />
+            {shots.map((s, i) => (
+              <div key={i} className="photo-preview">
+                <img src={s} alt={`Your marked screenshot ${i + 1}`} className="rv-shot-img" />
+                <div className="photo-btns">
+                  <button type="button" className="link" onClick={() => removeShot(i)} disabled={!!busy}>
+                    Remove
+                  </button>
                 </div>
               </div>
-              <Bi
-                className="rv-agree"
-                en={`Same marks as Ajarn on ${cmp.agree} of ${cmp.of} sentences${cmp.agree === cmp.of ? ' — perfect!' : '.'}`}
-                th={`ให้คะแนนตรงกับอาจารย์ ${cmp.agree} จาก ${cmp.of} ประโยค`}
-              />
-              {keyOut.note && <p className="rv-note">{keyOut.note}</p>}
-              <p className="hint">
-                <Bi en="Look at the sentences where you and Ajarn differ (orange)." th="ดูประโยคที่คะแนนไม่ตรงกับอาจารย์ (สีส้ม)" />
-              </p>
-            </>
-          ) : (
-            <div className="rv-pending">
-              <Spinner />
-              <Bi en="Posted ✓ — getting Ajarn’s marks…" th="โพสต์แล้ว กำลังโหลดคะแนนของอาจารย์…" />
-            </div>
-          )}
-        </div>
-      )}
-
-      {!locked && <Legend />}
-
-      {(['p', 't'] as const).map((box) => {
-        const texts = box === 'p' ? h.p : h.t;
-        const counted = texts.filter((_, i) => !marks[box][i]?.x).length;
-        return (
-          <div key={box} className="rv-box">
-            <h3 className="rv-box-head">
-              {box === 'p' ? 'Company Profile' : 'Describing Trends'}
-              <span className="rv-box-need">
-                {texts.length} {texts.length === 1 ? 'sentence' : 'sentences'} · {NEEDED} needed
-              </span>
-            </h3>
-            {texts.length < NEEDED && (
-              <p className="rv-short">
-                <Bi
-                  en={texts.length ? `Only ${texts.length} — ${NEEDED - texts.length} missing (−1 each).` : `This box is empty — ${NEEDED} sentences missing (−1 each).`}
-                  th={texts.length ? `มีแค่ ${texts.length} ประโยค ขาด ${NEEDED - texts.length} ประโยค (หักประโยคละ 1)` : `ช่องนี้ว่าง ขาด ${NEEDED} ประโยค (หักประโยคละ 1)`}
-                />
-              </p>
-            )}
-            {texts.map((t, i) => (
-              <Sentence
-                key={i}
-                label={`${box.toUpperCase()}${i + 1}`}
-                text={t}
-                mark={marks[box][i]}
-                onMark={(m) => set(box, i, m)}
-                locked={locked}
-                ajarn={keyOut ? (keyOut[box][i] ?? {}) : null}
-              />
             ))}
-            {!locked && texts.length >= NEEDED && counted < NEEDED && (
-              <p className="rv-short">
-                <Bi en={`Only ${counted} count — ${NEEDED - counted} missing (−1 each).`} th={`นับได้ ${counted} ประโยค ขาด ${NEEDED - counted} (หักประโยคละ 1)`} />
-              </p>
+            {shots.length < MAX_SHOTS && (
+              <button type="button" className="btn photo-btn" onClick={() => fileRef.current?.click()} disabled={!!busy}>
+                {busy === 'shot' ? 'Uploading screenshot…' : shots.length ? '📷 Add another screenshot (if the paragraph did not fit)' : '📷 Upload your marked screenshot'}
+              </button>
             )}
           </div>
-        );
-      })}
 
-      {!locked && (
-        <>
-          <ScoreCard s={mine} />
-          <button type="button" className="btn primary big" disabled={busy} onClick={post}>
-            {busy ? 'Posting…' : 'Post on Ladpet'}
+          <label className="rv-fixbox">
+            <Bi className="rv-fixbox-label" en="Or paste the paragraph here and fix it" th="หรือวางย่อหน้าที่นี่แล้วแก้ไข" />
+            <textarea value={text} rows={9} maxLength={8000} onChange={(e) => setText(e.target.value)} placeholder="Paste the paragraph here, then fix the mistakes · วางย่อหน้าที่นี่ แล้วแก้คำที่ผิด" />
+          </label>
+
+          <button type="button" className="btn primary big" disabled={!!busy} onClick={post}>
+            {busy === 'post' ? 'Posting…' : 'Post on Ladpet'}
           </button>
           {err && <Bi className="error" en={err[0]} th={err[1]} />}
           <p className="hint">
-            <Bi en="After you post, your phone shows Ajarn’s marks for these sentences." th="หลังโพสต์ จะเห็นคะแนนของอาจารย์สำหรับประโยคเหล่านี้" />
+            <Bi en="Everyone in your group can work on this from their own phone. After you post, you see Ajarn’s version." th="ทุกคนในกลุ่มทำได้จากโทรศัพท์ของตัวเอง หลังโพสต์ จะเห็นฉบับของอาจารย์" />
           </p>
         </>
-      )}
-      {locked && next && (
-        <button type="button" className="btn primary big" onClick={next}>
-          Next project →
-        </button>
-      )}
-      {locked && !next && keyOut && k + 1 < MAX_PROJECTS && (
-        <p className="hint">
-          <Bi en="Finished early? Your next project appears here in a moment." th="ทำเสร็จเร็ว? งานชิ้นต่อไปจะขึ้นตรงนี้ในอีกสักครู่" />
-        </p>
+      ) : (
+        <>
+          <div className="rv-posted">
+            <span className="tick">✓</span> <Bi en="Posted" th="โพสต์แล้ว" />
+          </div>
+          <Versions h={h} text={text} shots={shots} keyOut={keyOut} />
+          {next && (
+            <button type="button" className="btn primary big" onClick={next}>
+              Next project →
+            </button>
+          )}
+          {!next && keyOut && k + 1 < MAX_PROJECTS && (
+            <p className="hint">
+              <Bi en="Finished early? Your next project appears here in a moment." th="ทำเสร็จเร็ว? งานชิ้นต่อไปจะขึ้นตรงนี้ในอีกสักครู่" />
+            </p>
+          )}
+        </>
       )}
     </section>
   );
 }
 
-function Legend() {
-  const [open, setOpen] = useState(true);
+/** The project as one card: what the group screenshots. */
+function Paragraph({h}: {h: Handout}) {
+  const {p, t} = paragraphs(h);
   return (
-    <div className={`rv-legend ${open ? 'open' : ''}`}>
-      <button type="button" className="rv-legend-toggle" onClick={() => setOpen(!open)}>
-        {open ? '▾' : '▸'} How to mark · วิธีให้คะแนน
-      </button>
-      {open && (
-        <>
-          <p>
-            <Bi en="Start at 8. Mark every sentence: ✓ if it is correct, or tap what is wrong (more than one is fine) and write the fix." th="เริ่มที่ 8 คะแนน ทุกประโยคต้องเลือก ✓ ถ้าถูก หรือแตะสิ่งที่ผิด (เลือกได้มากกว่าหนึ่ง) แล้วเขียนคำที่แก้" />
-          </p>
-          <ul>
-            <li>
-              <b>Grammar</b> −0.5 each (tap twice for two errors) — verb -s, tense, a/an, plural, a fragment with no subject or verb · <span lang="th">ไวยากรณ์ หักที่ละ 0.5</span>
-            </li>
-            <li>
-              <b>Spelling</b>, <b>Punctuation</b>, <b>It / They</b> −0.5 once each for the whole project · <span lang="th">หัก 0.5 ครั้งเดียวต่อเรื่อง</span>
-            </li>
-            <li>
-              <b>Doesn't count</b> — profile: a heading only, not a sentence. Trends: no change, no word from the list, or a plan/goal (“aims to increase”). Fewer than 6 that count: −1 for each missing · <span lang="th">ไม่นับ หักประโยคละ 1 ถ้าไม่ครบ 6</span>
-            </li>
-          </ul>
-          <p className="hint">Numbering, headings and word tags like (increase) were taken out — don't mark them.</p>
-        </>
-      )}
+    <div className="rv-para">
+      <h2 className="rv-co">{h.co}</h2>
+      <h3 className="rv-para-head">Company Profile</h3>
+      {p ? <p>{p}</p> : <p className="rv-empty">(This box was left empty.)</p>}
+      <h3 className="rv-para-head">Describing Trends</h3>
+      {t ? <p>{t}</p> : <p className="rv-empty">(This box was left empty.)</p>}
     </div>
   );
 }
 
-function Sentence({label, text, mark, onMark, locked, ajarn}: {label: string; text: string; mark: Mark | undefined; onMark: (m: Mark) => void; locked: boolean; ajarn: {k?: Key; n?: string} | null}) {
-  const m = mark ?? {};
-  const toggle = (c: TagCode) => {
-    const next: Mark = {...m};
-    delete next.ok;
-    if (c === 'g') next.g = ((m.g ?? 0) + 1) % 3 || undefined;
-    else next[c] = m[c] ? undefined : 1;
-    for (const key of Object.keys(next) as (keyof Mark)[]) if (next[key] === undefined) delete next[key];
-    if (!hasProblem(next)) delete next.fix;
-    onMark(next);
-  };
-  const agree = ajarn ? agrees(m, ajarn.k) : null;
+function CopyButton({text}: {text: string}) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    } catch {
+      // older phones / no permission: copy through a hidden box
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        ok = document.execCommand('copy');
+      } catch {
+        ok = false;
+      }
+      ta.remove();
+    }
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    }
+  }
   return (
-    <div className={`rv-sent ${m.ok ? 'ok' : hasProblem(m) ? 'bad' : ''} ${agree === null ? '' : agree ? 'agree' : 'differ'}`}>
-      <div className="rv-line">
-        <span className="rv-n">{label}</span>
-        <p className="rv-text">{text}</p>
-      </div>
-      {!locked ? (
-        <>
-          <div className="rv-tags">
-            <button type="button" className={`rv-tag ok ${m.ok ? 'on' : ''}`} onClick={() => onMark({ok: 1})}>
-              ✓ Correct
-            </button>
-            {TAGS.map((t) => (
-              <button key={t.c} type="button" className={`rv-tag ${m[t.c] ? 'on' : ''}`} onClick={() => toggle(t.c)} title={`${t.th} · ${t.pts}`}>
-                {t.en}
-                {t.c === 'g' && (m.g ?? 0) > 1 ? ' ×2' : ''}
-              </button>
-            ))}
-          </div>
-          {hasProblem(m) && (
-            <input
-              className="rv-fix"
-              value={m.fix ?? ''}
-              maxLength={400}
-              onChange={(e) => onMark({...m, fix: e.target.value || undefined})}
-              placeholder="Write the fix (optional) · เขียนคำที่แก้"
-            />
-          )}
-        </>
-      ) : (
-        <div className="rv-compare">
-          <div className="rv-who">
-            <span className="rv-who-label">You</span>
-            <Chips k={m} />
-            {m.fix && <span className="rv-fix-shown">→ {m.fix}</span>}
-          </div>
-          {ajarn && (
-            <div className="rv-who ajarn">
-              <span className="rv-who-label">Ajarn</span>
-              <Chips k={ajarn.k} />
-              <span className={`rv-badge ${agree ? 'yes' : 'no'}`}>{agree ? 'same' : 'different'}</span>
-              {ajarn.n && <p className="rv-ajarn-note">{ajarn.n}</p>}
-            </div>
-          )}
+    <button type="button" className="btn rv-copy" onClick={copy}>
+      {copied ? 'Copied ✓ — paste it in the box below' : '📋 Copy the paragraph'}
+    </button>
+  );
+}
+
+/** After posting (phone) and on the projector: the group's version next to Ajarn's. */
+export function Versions({h, text, shots = [], keyOut, big}: {h: Handout; text?: string; shots?: string[]; keyOut: KeyOut | null; big?: boolean}) {
+  return (
+    <div className={`rv-versions ${big ? 'big' : ''}`}>
+      <div className="rv-version mine">
+        <div className="rv-version-head">
+          <Bi en={big ? "Group's version" : 'Your version'} th={big ? 'ฉบับของกลุ่ม' : 'ฉบับของกลุ่มคุณ'} />
         </div>
-      )}
+        {shots.map((s, i) => (
+          <img key={i} src={s} alt={`The group's marked screenshot ${i + 1}`} className="rv-shot-img" />
+        ))}
+        {text?.trim() && <p className="rv-version-text">{text}</p>}
+        {!shots.length && !text?.trim() && <p className="muted">—</p>}
+      </div>
+      <div className="rv-version ajarn">
+        <div className="rv-version-head">
+          <Bi en="Ajarn's version" th="ฉบับของอาจารย์" />
+        </div>
+        {keyOut ? (
+          <AjarnVersion h={h} keyOut={keyOut} />
+        ) : (
+          <div className="rv-pending">
+            <Spinner />
+            <Bi en="Getting Ajarn’s version…" th="กำลังโหลดฉบับของอาจารย์…" />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-export function Chips({k}: {k: Key | undefined}) {
-  if (!hasProblem(k)) return <span className="rv-chip ok">✓ correct</span>;
+export function AjarnVersion({h, keyOut}: {h: Handout; keyOut: KeyOut}) {
+  const units = ajarnUnits(h, keyOut);
+  const notes = units.filter((u) => u.n);
+  const part = (box: 'p' | 't') => {
+    const us = units.filter((u) => u.box === box);
+    if (!us.length) return <p className="rv-empty">(This box was left empty.)</p>;
+    return (
+      <p>
+        {us.map((u, i) => (
+          <span key={i}>
+            {i ? ' ' : ''}
+            {u.n ? (
+              <mark className="rv-aj-hl">
+                {u.text}
+                <sup>{u.n}</sup>
+              </mark>
+            ) : (
+              u.text
+            )}
+          </span>
+        ))}
+      </p>
+    );
+  };
   return (
-    <>
-      {TAGS.filter((t) => k![t.c]).map((t) => (
-        <span key={t.c} className={`rv-chip ${t.c}`}>
-          {t.en}
-          {t.c === 'g' && (k!.g ?? 0) > 1 ? ` ×${k!.g}` : ''}
-        </span>
-      ))}
-    </>
-  );
-}
-
-function ScoreCard({s}: {s: ReturnType<typeof scoreOf>}) {
-  const rows: [string, string][] = [];
-  if (s.missingP) rows.push([`Company Profile: ${s.missingP} missing`, `−${s.missingP}`]);
-  if (s.missingT) rows.push([`Describing Trends: ${s.missingT} missing`, `−${s.missingT}`]);
-  if (s.grammar) rows.push([`Grammar: ${s.grammar} ${s.grammar === 1 ? 'error' : 'errors'}`, `−${fmt(Math.min(5, s.grammar * 0.5))}`]);
-  if (s.s) rows.push(['Spelling', '−0.5']);
-  if (s.u) rows.push(['Punctuation', '−0.5']);
-  if (s.o) rows.push(['It / They', '−0.5']);
-  return (
-    <div className="rv-scorecard">
-      <div className="rv-total">
-        <Bi en="Your score" th="คะแนนที่กลุ่มให้" /> <b>{fmt(s.score)}</b>
-        <span>/8</span>
-      </div>
-      {rows.length ? (
-        <ul>
-          {rows.map(([a, b]) => (
-            <li key={a}>
-              <span>{a}</span>
-              <b>{b}</b>
+    <div className="rv-aj">
+      <h3 className="rv-para-head">Company Profile</h3>
+      {part('p')}
+      <h3 className="rv-para-head">Describing Trends</h3>
+      {part('t')}
+      {keyOut.note && <p className="rv-note">{keyOut.note}</p>}
+      {notes.length ? (
+        <ol className="rv-aj-notes">
+          {notes.map((u) => (
+            <li key={u.n} value={u.n}>
+              {u.note}
             </li>
           ))}
-        </ul>
+        </ol>
       ) : (
-        <p className="hint">No points off yet.</p>
+        !keyOut.note && <p className="rv-aj-none">Ajarn found no mistakes in these sentences.</p>
       )}
     </div>
   );

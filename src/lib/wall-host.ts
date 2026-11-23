@@ -13,7 +13,7 @@ import {
   update,
 } from 'firebase/database';
 import {assignable, getPreset} from './presets.ts';
-import {MAX_PROJECTS, type Handout, type Pool, type Summary, compare, handoutOf, keyOf, nextProject, parseJson, parseMarks, scoreOf} from './review.ts';
+import {MAX_PROJECTS, type Handout, type Pool, handoutOf, keyOf, nextProject, parseJson} from './review.ts';
 import {type Post, type PresetId, type Pub, REVIEW_STALE_MS, type RosterRow, STALE_MS, type Team, isPosted} from './types.ts';
 
 export type HostView = {
@@ -250,7 +250,7 @@ export class WallHost {
   /**
    * Wk16 peer review, run on every change: (1) every group gets a project from another section (the section's planned
    * order, never one already on this wall); (2) once a group has posted project k (fields.f<k>), it gets Mew's marks
-   * (rkey/<tid>/<k>), its marks are compared and the summary goes to fields.f<k+3>; (3) it is given its next project,
+   * (rkey/<tid>/<k>, shown as Ajarn's version next to the group's); (3) it is given its next project,
    * up to MAX_PROJECTS. Writes are patched into the view at once, so a burst of changes never hands out twice.
    */
   private assignReviews() {
@@ -283,11 +283,6 @@ export class WallHost {
           rkey[tid] = {...(rkey[tid] ?? {}), [k]: json};
           writes[`rkey/${tid}/${k}`] = json;
         }
-        const marks = parseMarks(post.fields[`b${k}`]);
-        const sc = scoreOf(marks.p, marks.t, h.p.length, h.t.length).score;
-        const sum: Summary = {co: h.co, sc, aj: key.score, ...compare(h, marks, key)};
-        const json = JSON.stringify(sum);
-        if (post.fields[`f${k + 3}`] !== json) writes[`posts/${tid}/fields/f${k + 3}`] = json;
         if (k + 1 < MAX_PROJECTS && !review[tid]?.[k + 1]) give(tid, k + 1);
       }
     }

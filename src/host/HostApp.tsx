@@ -244,7 +244,7 @@ function Setup({
                     {p.id === 'custom'
                       ? 'your title + question · posts show straight away'
                       : p.review
-                        ? "Project groups · Ladpet gives each group another section's project to mark, then shows Ajarn's marks"
+                        ? "Project groups · Ladpet gives each group another section's project to fix (screenshot or text), then shows Ajarn's version"
                       : p.companies
                         ? `Pairs · Ladpet gives each pair a company + ${p.companies[0]?.pick ? 'two of its charts' : 'its six charts'}`
                         : p.charts
@@ -286,7 +286,7 @@ function Setup({
         </button>
         {!section && <span className="muted">Pick your section.</span>}
         {section && !preset && <span className="muted">Pick an activity.</span>}
-        {section && preset?.review && !pool && <span className="muted">Unlock the project pool first.</span>}
+        {section && preset?.review && !pool && <span className="muted">Open Ladpet from your teacher link first (it loads the projects).</span>}
         {err && <span className="error">{err}</span>}
       </div>
       <p className="setup-foot">
@@ -401,7 +401,7 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
         <li>Type everyone's nicknames — or tap your name if your {preset.who === 'pair' ? 'partner' : 'group'} is already in</li>
         <li>
           {preset.review
-            ? "Ladpet gives your group another section's Final Project — mark every sentence, then post"
+            ? "Ladpet gives your group another section's Final Project — screenshot it, write your fixes on it, upload, then post"
             : preset.id === 'wk13-spot9'
             ? 'Post one marked screenshot per pair'
             : preset.companies

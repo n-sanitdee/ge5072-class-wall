@@ -21,7 +21,9 @@ import {
 } from '../lib/presets.ts';
 import {EMPTY_PICK, type TrendPick, composeFrames, composeTrend, fixPick, frameParts, parseBlanks, parsePick} from '../lib/compose.ts';
 import {LIMITS, type Post, isPosted} from '../lib/types.ts';
-import {type JoinError, JoinFailed, WallClient, type WallState, checkMember, checkName, defaultGroupName, peekWall} from '../lib/wall-client.ts';
+import {type JoinError, JoinFailed, WallClient, type WallState, checkMember, checkName, defaultGroupName, findOpenWalls, peekWall} from '../lib/wall-client.ts';
+import type {Pub} from '../lib/types.ts';
+import {getApp} from 'firebase/app';
 import {orderedTeams} from '../lib/wall-host.ts';
 import {APP_NAME, Bi, CARD_TINTS, ChartCard, CompanyHead, DbImage, Passage, PostBody, Rich, Spinner} from '../ui/common.tsx';
 import {Tile} from '../ui/tiles.tsx';
@@ -73,17 +75,29 @@ function getDb() {
   return db;
 }
 
+/** ?a=wk16 (the slide QR) → the preset whose open wall the phone looks for. */
+const FIND_ACTIVITY: Record<string, string> = {wk16: 'wk16-review'};
+
 export function StudentApp() {
-  const urlCode = (new URLSearchParams(location.search).get('w') ?? '').replace(/\D/g, '').slice(0, 6);
-  const [code, setCode] = useState(() => urlCode || loadSaved()?.code || '');
+  const params = new URLSearchParams(location.search);
+  const urlCode = (params.get('w') ?? '').replace(/\D/g, '').slice(0, 6);
+  const findPreset = !urlCode ? (FIND_ACTIVITY[params.get('a') ?? ''] ?? null) : null;
+  const [code, setCode] = useState(() => urlCode || (findPreset ? '' : loadSaved()?.code || ''));
   const [entered, setEntered] = useState(!!code);
+  const [finding, setFinding] = useState(!!findPreset && !code);
 
   useEffect(() => {
     document.title = APP_NAME;
   }, []);
 
   if (!configured) return <div className="phone screen center"><p>Not configured.</p></div>;
-  if (!entered) return <CodeForm onCode={(c) => { setCode(c); setEntered(true); history.replaceState(null, '', `?w=${c}`); }} />;
+  const go = (c: string) => {
+    setCode(c);
+    setEntered(true);
+    history.replaceState(null, '', `?w=${c}`);
+  };
+  if (!entered && finding && findPreset) return <FindWall preset={findPreset} onCode={go} onManual={() => setFinding(false)} />;
+  if (!entered) return <CodeForm onCode={go} />;
   return (
     <Wall
       key={code}
@@ -95,6 +109,73 @@ export function StudentApp() {
         setEntered(false);
       }}
     />
+  );
+}
+
+/** The slide QR: find this activity's wall that is open right now and go straight in (several → tap your section). */
+function FindWall({preset, onCode, onManual}: {preset: string; onCode: (c: string) => void; onManual: () => void}) {
+  const [walls, setWalls] = useState<{code: string; pub: Pub; createdAt: number}[] | null>(null);
+  const [err, setErr] = useState(false);
+  const onCodeRef = useRef(onCode);
+  onCodeRef.current = onCode;
+  useEffect(() => {
+    let live = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const look = async () => {
+      try {
+        const db = getDb();
+        const all = await findOpenWalls(db, getApp(), backend, preset);
+        if (!live) return;
+        setErr(false);
+        // a wall that still takes new groups comes first; an older one that is already open/closed only if it is alone
+        const joinable = all.filter((w) => !w.pub.revealed && !w.pub.locked);
+        const pick = joinable.length ? joinable : all;
+        if (pick.length === 1) return onCodeRef.current(pick[0].code);
+        setWalls(pick);
+        if (!pick.length) timer = setTimeout(look, 4000);
+      } catch {
+        if (!live) return;
+        setErr(true);
+        timer = setTimeout(look, 4000);
+      }
+    };
+    void look();
+    return () => {
+      live = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [preset]);
+  const p = getPreset(preset);
+  return (
+    <div className="phone screen center pad">
+      <h1 className="app-name">{APP_NAME}</h1>
+      <p className="find-title">
+        {p.week} · {p.activity}: {p.title}
+      </p>
+      {walls === null || (!walls.length && !err) ? (
+        <div className="find-wait">
+          <Spinner />
+          {walls === null ? (
+            <Bi en="Finding your class's Ladpet…" th="กำลังหา Ladpet ของห้องคุณ…" />
+          ) : (
+            <Bi en="Ladpet isn't open yet — wait for Ajarn to open it on the screen." th="Ladpet ยังไม่เปิด รออาจารย์เปิดบนจอก่อน" />
+          )}
+        </div>
+      ) : walls.length ? (
+        <div className="find-list">
+          <Bi en="Tap your section" th="แตะเซกชันของคุณ" />
+          {walls.map((w) => (
+            <button key={w.code} type="button" className="btn primary big" onClick={() => onCode(w.code)}>
+              {w.pub.section}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {err && <Bi className="error" en={JOIN_ERRORS.network[0]} th={JOIN_ERRORS.network[1]} />}
+      <button type="button" className="link" onClick={onManual}>
+        Type the Ladpet code instead
+      </button>
+    </div>
   );
 }
 
@@ -183,7 +264,7 @@ function Wall({code, onLeave}: {code: string; onLeave: () => void}) {
   const preset = getPreset(pub.preset);
   const joined = !!client.tid && st.inWall !== false && !st.removed;
   const live = !!pub.live;
-  const shown = pub.revealed || live;
+  const shown = (pub.revealed || live) && !preset.review; // Wk16: each group sees only its own project
   const rejoin = () => {
     save(null);
     client.forget();
@@ -236,7 +317,7 @@ function Wall({code, onLeave}: {code: string; onLeave: () => void}) {
             </button>
           </div>
         ) : null}
-        {pub.revealed && (
+        {pub.revealed && !preset.review && (
           <div className="revealed-head">
             <Bi en={`The wall is open — ${Object.values(st.posts).filter(isPosted).length} posts`} th="บอร์ดเปิดแล้ว ดูคำตอบของทุกคนได้เลย" />
           </div>
@@ -261,7 +342,7 @@ function Wall({code, onLeave}: {code: string; onLeave: () => void}) {
           </button>
         ) : null}
         {!live && !pub.revealed && <Progress pub={pub} />}
-        {joined && !live && !pub.revealed && !assignable(preset) && <Intro preset={preset} />}
+        {joined && !live && !pub.revealed && !assignable(preset) && !preset.review && <Intro preset={preset} />}
         {shown && (
           <section className="live-wall">
             {live && <Bi className="live-head" en={`On the wall now — ${Object.values(st.posts).filter(isPosted).length} posts`} th="โพสต์บนบอร์ดตอนนี้" />}
