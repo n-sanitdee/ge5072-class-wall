@@ -383,6 +383,7 @@ function WallScreen({host, view, onBack, onClose}: {host: WallHost; view: HostVi
         tint={CARD_TINTS[i % CARD_TINTS.length]}
         fit
         style={style}
+        rkey={preset.review ? view.rkey[id] : undefined}
         onClick={() => setSpot(i)}
       />
     );

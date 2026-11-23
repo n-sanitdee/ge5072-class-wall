@@ -2283,3 +2283,42 @@ html.is-host {
 .find-list { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 320px; margin: 6px 0 16px; text-align: center; }
 .rv-shot { display: flex; flex-direction: column; gap: 10px; }
 .rv-version .rv-shot-img + .rv-shot-img { margin-top: 8px; }
+
+/* Wk16 Deductions (Mew, 23 Nov 2026 evening): after the fix box; the score comparison after posting */
+.rv-ded { border: 2px solid var(--accent); border-radius: 14px; padding: 12px 14px; background: #fff; display: flex; flex-direction: column; gap: 8px; }
+.rv-ded-title { margin: 0; font-size: 18px; color: var(--accent-deep); }
+.rv-ded-title .th { margin-left: 6px; font-size: 14px; font-weight: 600; color: var(--muted); }
+.rv-ded-intro { margin: 0; font-size: 14px; color: var(--body); }
+.rv-ded-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; border-top: 1px dashed var(--line); padding-top: 8px; }
+.rv-ded-row.off .rv-ded-pts { color: #c62839; }
+.rv-ded-what { flex: 1 1 180px; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.rv-ded-what > b { font-size: 15px; color: var(--ink); }
+.rv-ded-what > .th { font-size: 13px; color: var(--muted); }
+.rv-ded-hint { font-size: 13px; color: var(--body); }
+.rv-ded-hint b { white-space: nowrap; color: var(--accent-deep); }
+.rv-ded-ctl { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.rv-ded-pts { min-width: 2.6em; text-align: right; font-weight: 800; font-size: 16px; color: var(--muted); }
+.rv-step { display: inline-flex; align-items: center; border: 2px solid var(--line); border-radius: 999px; overflow: hidden; background: #fff; }
+.rv-step button { width: 40px; height: 38px; border: 0; background: var(--accent-soft); font-size: 22px; font-weight: 800; color: var(--accent-deep); cursor: pointer; }
+.rv-step button:disabled { opacity: 0.35; cursor: default; }
+.rv-step-n { min-width: 2.2em; text-align: center; font-weight: 800; font-size: 18px; }
+.rv-seg { display: inline-flex; border: 2px solid var(--line); border-radius: 999px; overflow: hidden; }
+.rv-seg button { border: 0; background: #fff; padding: 8px 12px; min-height: 38px; font-weight: 700; font-size: 14px; color: var(--body); cursor: pointer; }
+.rv-seg button + button { border-left: 2px solid var(--line); }
+.rv-seg button.on { background: #15803d; color: #fff; }
+.rv-seg button.on.bad { background: #c62839; }
+.rv-ded .rv-total { justify-content: flex-end; border-top: 2px solid var(--line); padding-top: 8px; }
+.rv-ded .rv-total .bi { display: inline-flex; flex-direction: column; align-items: flex-end; line-height: 1.15; }
+.rv-ded .rv-total .th { font-size: 12px; font-weight: 600; color: var(--muted); }
+.rv-result .rv-scores > div { font-weight: 700; color: var(--muted); }
+.rv-ded-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; background: #fff; border-radius: 10px; overflow: hidden; }
+.rv-ded-table th, .rv-ded-table td { border-top: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+.rv-ded-table thead th { border-top: 0; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.rv-ded-table thead th .th { display: block; text-transform: none; letter-spacing: 0; }
+.rv-ded-table td .th { display: block; font-size: 12px; color: var(--muted); }
+.rv-ded-table tr.differ td { background: #fff8eb; }
+.rv-result.big { margin-top: 10px; }
+.rv-result.big .rv-ded-table { font-size: 16px; }
+.review-sum .rev-score { font-size: 0.9em; }
+.review-sum .rev-score b { font-size: 1.15em; }
+.review-sum .rev-score span { opacity: 0.7; }

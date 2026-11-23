@@ -2,7 +2,7 @@ import {type CSSProperties, type ReactNode, useEffect, useRef, useState} from 'r
 import {BAD_P, type Chart, type Company, type Preset, shownCharts} from '../lib/presets.ts';
 import {chartSvg} from './chart-svg.ts';
 import type {Post} from '../lib/types.ts';
-import {MAX_PROJECTS, parseJson, shotKey, shotsOf, textKey} from '../lib/review.ts';
+import {type KeyOut, MAX_PROJECTS, fmt, parseJson, postedScore, shotKey, shotsOf, textKey} from '../lib/review.ts';
 
 /** Mew named it, 22 Oct 2026. */
 export const APP_NAME = 'Ladpet';
@@ -121,18 +121,23 @@ export function CompanyHead({company, label}: {company: Company; label?: string}
 }
 
 /** The finished sentences of a post, as everyone sees them (the photo is handled by the caller). */
-export function PostBody({post, preset, big, chart}: {post: Post; preset: Preset; big?: boolean; chart?: boolean}) {
+export function PostBody({post, preset, big, chart, rkey}: {post: Post; preset: Preset; big?: boolean; chart?: boolean; rkey?: Record<string, string>}) {
   const f = (i: number) => post.fields?.[`f${i}`];
-  // Wk16 peer review: one line per project the group posted — the company and what the group sent (23 Nov 2026:
-  // no scores; click the tile for the group's version next to Ajarn's)
+  // Wk16 peer review: one line per project the group posted — the company, what the group sent and (since the
+  // 23 Nov evening Deductions section) its score next to Ajarn's; click the tile for the whole comparison
   if (preset.review) {
-    const rows = reviewRows(post);
+    const rows = reviewRows(post, rkey);
     return (
       <div className={`post-body review-sum ${big ? 'big' : ''}`}>
         {rows.map((r, k) => (
           <div key={k} className="rev-row">
             <div className="rev-co">{r.co}</div>
             <div className="rev-sent">{[r.shot && '📷 screenshot', r.text && '✍️ fixed text'].filter(Boolean).join(' · ')}</div>
+            {r.sc !== undefined && (
+              <div className="rev-score">
+                Group <b>{fmt(r.sc)}</b> · Ajarn <b>{r.aj === undefined ? '…' : fmt(r.aj)}</b> <span>/8</span>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -205,12 +210,20 @@ export function PostBody({post, preset, big, chart}: {post: Post; preset: Preset
   );
 }
 
-/** Wk16: a review post's projects — the host's summary (f3–f5) when it is there, else what the group posted (f0–f2). */
-export function reviewRows(post: Post): {co: string; shot: boolean; text: boolean}[] {
-  const out: {co: string; shot: boolean; text: boolean}[] = [];
+/** Wk16: a review post's projects — what the group posted (f0–f2), its score, and Ajarn's when the host has it. */
+export function reviewRows(post: Post, rkey?: Record<string, string>): {co: string; shot: boolean; text: boolean; sc?: number; aj?: number}[] {
+  const out: {co: string; shot: boolean; text: boolean; sc?: number; aj?: number}[] = [];
   for (let k = 0; k < MAX_PROJECTS; k++) {
-    const s = parseJson<{co: string}>(post.fields?.[`f${k}`]);
-    if (s) out.push({co: s.co, shot: shotsOf(post.fields?.[shotKey(k)]).length > 0, text: !!post.fields?.[textKey(k)]?.trim()});
+    const raw = post.fields?.[`f${k}`];
+    const s = parseJson<{co: string}>(raw);
+    if (s)
+      out.push({
+        co: s.co,
+        shot: shotsOf(post.fields?.[shotKey(k)]).length > 0,
+        text: !!post.fields?.[textKey(k)]?.trim(),
+        sc: postedScore(raw),
+        aj: parseJson<KeyOut>(rkey?.[k])?.score,
+      });
   }
   return out;
 }

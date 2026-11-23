@@ -69,6 +69,7 @@ export function Tile({
   onClick,
   style,
   extra,
+  rkey,
 }: {
   name: string;
   members?: string[];
@@ -82,11 +83,13 @@ export function Tile({
   onClick?: () => void;
   style?: CSSProperties;
   extra?: ReactNode;
+  /** Wk16 peer review: Ajarn's marks for this group's projects (her scores on the tile). */
+  rkey?: Record<string, string>;
 }) {
   const body = useRef<HTMLDivElement>(null);
   const words = hasWords(post);
   const who = membersLine(name, members);
-  useFitText(body, !!fit && words, JSON.stringify([post.text, post.fields, post.photo]));
+  useFitText(body, !!fit && words, JSON.stringify([post.text, post.fields, post.photo, rkey ? Object.keys(rkey).length : 0]));
   const photo = post.photo && thumb;
   return (
     <article
@@ -102,7 +105,7 @@ export function Tile({
       {photo && <DbImage key={post.at} load={thumb} alt={name} className="ptile-img" lazy={!fit} />}
       {words && (
         <div className="ptile-body" ref={body}>
-          <PostBody post={post} preset={preset} />
+          <PostBody post={post} preset={preset} rkey={rkey} />
         </div>
       )}
       {extra}
@@ -121,7 +124,7 @@ const PHOTO_ROOM = 1400;
 const CHARTS_ROOM = 6 * 260;
 
 export function itemFor(id: string, post: Post, preset?: Preset): Item {
-  if (preset?.review) return {id, photo: false, chars: 90 * Math.max(1, ['f0', 'f1', 'f2'].filter((k) => post.fields?.[k]).length)};
+  if (preset?.review) return {id, photo: false, chars: 120 * Math.max(1, ['f0', 'f1', 'f2'].filter((k) => post.fields?.[k]).length)};
   const chars =
     (post.text?.length ?? 0) +
     Object.entries(post.fields ?? {}).reduce((n, [k, v]) => n + (k.startsWith('f') ? v.length : 0), 0) +

@@ -6,15 +6,25 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {ImageError, prepareImage} from '../lib/image.ts';
 import {
+  CRITERIA,
+  type Ded,
+  type DedCode,
   type Handout,
   type KeyOut,
   MAX_PROJECTS,
   MAX_SHOTS,
   SHOT_CHARS,
+  ajarnDed,
   ajarnUnits,
   copyText,
+  dedKey,
+  dedScore,
+  fmt,
   paragraphs,
+  parseDed,
   parseJson,
+  pointsOff,
+  postedScore,
   shotKey,
   shotsOf,
   textKey,
@@ -70,6 +80,8 @@ export function ReviewComposer({client, st}: {client: WallClient; st: WallState}
         h={handouts[k]}
         rawText={st.mine?.fields?.[textKey(k)]}
         shots={shotsOf(st.mine?.fields?.[shotKey(k)])}
+        rawDed={st.mine?.fields?.[dedKey(k)]}
+        sc={postedScore(st.mine?.fields?.[`f${k}`])}
         posted={posted(k)}
         keyOut={parseJson<KeyOut>(st.rkey?.[k])}
         next={k + 1 < handouts.length ? () => setTab(k + 1) : undefined}
@@ -80,7 +92,7 @@ export function ReviewComposer({client, st}: {client: WallClient; st: WallState}
 
 const SAVE_DELAY = 600;
 
-function Project({client, k, h, rawText, shots, posted, keyOut, next}: {client: WallClient; k: number; h: Handout; rawText: string | undefined; shots: string[]; posted: boolean; keyOut: KeyOut | null; next?: () => void}) {
+function Project({client, k, h, rawText, shots, rawDed, sc, posted, keyOut, next}: {client: WallClient; k: number; h: Handout; rawText: string | undefined; shots: string[]; rawDed: string | undefined; sc: number | undefined; posted: boolean; keyOut: KeyOut | null; next?: () => void}) {
   const remote = rawText ?? '';
   const [text, setText] = useState(remote);
   const [saveState, setSaveState] = useState<'' | 'saving' | 'saved' | 'error'>('');
@@ -92,6 +104,8 @@ function Project({client, k, h, rawText, shots, posted, keyOut, next}: {client: 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const running = useRef<Promise<void> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // the Deductions section saves each tap itself; Post waits for those saves and posts the score with the project
+  const flushDed = useRef<() => Promise<void>>(async () => {});
 
   // a co-editor's typing: take it when nothing is waiting to be saved here
   useEffect(() => {
@@ -184,7 +198,10 @@ function Project({client, k, h, rawText, shots, posted, keyOut, next}: {client: 
     setBusy('post');
     try {
       await flush();
-      await client.postProject(k, JSON.stringify({co: h.co}));
+      await flushDed.current();
+      // the score as saved (the group's phones may have tapped at the same time), read in one transaction
+      const saved = await client.updateField(dedKey(k), (cur) => cur);
+      await client.postProject(k, JSON.stringify({co: h.co, sc: dedScore(parseDed(saved))}));
     } catch (x) {
       const denied = String((x as {code?: string})?.code ?? x).toLowerCase().includes('permission');
       setErr(
@@ -219,7 +236,10 @@ function Project({client, k, h, rawText, shots, posted, keyOut, next}: {client: 
               <Bi en="Write your fixes on the screenshot (Photos → Edit → Markup)." th="เขียนคำที่แก้ลงบนภาพหน้าจอ (รูปภาพ → แก้ไข → มาร์กอัป)" />
             </li>
             <li>
-              <Bi en="Upload it here, then post." th="อัปโหลดที่นี่ แล้วโพสต์" />
+              <Bi en="Upload it here (or paste the paragraph in the box and fix it)." th="อัปโหลดที่นี่ (หรือวางย่อหน้าในช่องแล้วแก้ไข)" />
+            </li>
+            <li>
+              <Bi en="Take points off in Deductions, check the score, then post." th="หักคะแนนในส่วน Deductions ดูคะแนน แล้วโพสต์" />
             </li>
           </ol>
           <Paragraph h={h} />
@@ -249,12 +269,14 @@ function Project({client, k, h, rawText, shots, posted, keyOut, next}: {client: 
             <textarea value={text} rows={9} maxLength={8000} onChange={(e) => setText(e.target.value)} placeholder="Paste the paragraph here, then fix the mistakes · วางย่อหน้าที่นี่ แล้วแก้คำที่ผิด" />
           </label>
 
+          <Deductions client={client} k={k} raw={rawDed} flushRef={flushDed} />
+
           <button type="button" className="btn primary big" disabled={!!busy} onClick={post}>
             {busy === 'post' ? 'Posting…' : 'Post on Ladpet'}
           </button>
           {err && <Bi className="error" en={err[0]} th={err[1]} />}
           <p className="hint">
-            <Bi en="Everyone in your group can work on this from their own phone. After you post, you see Ajarn’s version." th="ทุกคนในกลุ่มทำได้จากโทรศัพท์ของตัวเอง หลังโพสต์ จะเห็นฉบับของอาจารย์" />
+            <Bi en="Everyone in your group can work on this from their own phone. After you post, you see Ajarn’s version and score." th="ทุกคนในกลุ่มทำได้จากโทรศัพท์ของตัวเอง หลังโพสต์ จะเห็นฉบับและคะแนนของอาจารย์" />
           </p>
         </>
       ) : (
@@ -263,6 +285,7 @@ function Project({client, k, h, rawText, shots, posted, keyOut, next}: {client: 
             <span className="tick">✓</span> <Bi en="Posted" th="โพสต์แล้ว" />
           </div>
           <Versions h={h} text={text} shots={shots} keyOut={keyOut} />
+          {sc !== undefined && <ScoreCompare h={h} ded={parseDed(rawDed)} sc={sc} keyOut={keyOut} />}
           {next && (
             <button type="button" className="btn primary big" onClick={next}>
               Next project →
@@ -276,6 +299,157 @@ function Project({client, k, h, rawText, shots, posted, keyOut, next}: {client: 
         </>
       )}
     </section>
+  );
+}
+
+/** After the fix box (Mew, 23 Nov 2026 evening): take points off with the course criteria and see the score /8.
+ *  Each tap is saved at once (a transaction on that one criterion), so the group's phones share one set. */
+function Deductions({client, k, raw, flushRef}: {client: WallClient; k: number; raw: string | undefined; flushRef: {current: () => Promise<void>}}) {
+  const [ded, setDed] = useState<Ded>(() => parseDed(raw));
+  const [state, setState] = useState<'' | 'error'>('');
+  const pending = useRef(0);
+  const running = useRef<Promise<unknown>>(Promise.resolve());
+  // a co-editor's taps: take them when nothing from this phone is waiting to be saved
+  useEffect(() => {
+    if (!pending.current) setDed(parseDed(raw));
+  }, [raw]);
+  useEffect(() => {
+    flushRef.current = async () => {
+      await running.current.catch(() => {});
+    };
+  }, [flushRef]);
+
+  function set(c: DedCode, v: number) {
+    const max = CRITERIA.find((x) => x.c === c)!.max;
+    const n = Math.max(0, Math.min(max, v));
+    setDed((d) => ({...d, [c]: n}));
+    pending.current++;
+    const save = client
+      .updateField(dedKey(k), (cur) => {
+        const d: Ded = {...parseDed(cur), [c]: n};
+        if (!n) delete d[c];
+        return Object.keys(d).length ? JSON.stringify(d) : null;
+      })
+      .then(() => setState(''))
+      .catch(() => setState('error'))
+      .finally(() => pending.current--);
+    running.current = running.current.then(() => save);
+  }
+
+  const score = dedScore(ded);
+  return (
+    <section className="rv-ded">
+      <h3 className="rv-ded-title">
+        <Bi en="Deductions" th="การหักคะแนน" />
+      </h3>
+      <p className="rv-ded-intro">
+        <Bi en="Start at 8, then take points off — the same criteria Ajarn marks with." th="เริ่มที่ 8 คะแนน แล้วหักตามเกณฑ์เดียวกับที่อาจารย์ใช้ตรวจ" />
+      </p>
+      {CRITERIA.map((cr) => {
+        const v = ded[cr.c] ?? 0;
+        const off = pointsOff(cr.c, v);
+        return (
+          <div key={cr.c} className={`rv-ded-row ${off ? 'off' : ''}`}>
+            <div className="rv-ded-what">
+              <b>{cr.en}</b>
+              <span className="th" lang="th">
+                {cr.th}
+              </span>
+              <span className="rv-ded-hint">
+                {cr.hint} <b>{cr.pts}</b>
+              </span>
+            </div>
+            <div className="rv-ded-ctl">
+              {cr.once ? (
+                <div className="rv-seg" role="group" aria-label={cr.en}>
+                  <button type="button" className={!v ? 'on' : ''} onClick={() => set(cr.c, 0)}>
+                    None
+                  </button>
+                  <button type="button" className={v ? 'on bad' : ''} onClick={() => set(cr.c, 1)}>
+                    Found
+                  </button>
+                </div>
+              ) : (
+                <div className="rv-step">
+                  <button type="button" aria-label={`${cr.en}: one less`} onClick={() => set(cr.c, v - 1)} disabled={!v}>
+                    −
+                  </button>
+                  <span className="rv-step-n">{v}</span>
+                  <button type="button" aria-label={`${cr.en}: one more`} onClick={() => set(cr.c, v + 1)} disabled={v >= cr.max}>
+                    +
+                  </button>
+                </div>
+              )}
+              <span className="rv-ded-pts">{off ? `−${fmt(off)}` : '0'}</span>
+            </div>
+          </div>
+        );
+      })}
+      <div className="rv-total">
+        <Bi en="Your score" th="คะแนนที่กลุ่มให้" /> <b>{fmt(score)}</b>
+        <span>/8</span>
+      </div>
+      {state === 'error' && <Bi className="error" en="Not saved — check your internet and tap again." th="ยังไม่บันทึก ตรวจสอบอินเทอร์เน็ตแล้วกดใหม่" />}
+    </section>
+  );
+}
+
+/** What one criterion's deduction looks like in the comparison table. */
+function dedCell(c: DedCode, d: Ded): string {
+  const v = d[c] ?? 0;
+  if (!v) return '—';
+  const off = `−${fmt(pointsOff(c, v))}`;
+  if (c === 'mp' || c === 'mt') return `${v} missing (${off})`;
+  if (c === 'g') return `${v} ${v === 1 ? 'mistake' : 'mistakes'} (${off})`;
+  return `found (${off})`;
+}
+
+/** After posting (phone) and on the projector: the group's deductions and score next to Ajarn's. */
+export function ScoreCompare({h, ded, sc, keyOut, big}: {h: Handout; ded: Ded; sc: number; keyOut: KeyOut | null; big?: boolean}) {
+  const aj = keyOut ? ajarnDed(h, keyOut) : null;
+  return (
+    <div className={`rv-result ${big ? 'big' : ''}`}>
+      <div className="rv-scores">
+        <div>
+          <span className="rv-score-label">{big ? 'Group' : 'Your group'}</span>
+          <b>{fmt(sc)}</b>/8
+        </div>
+        <span className="rv-vs">vs</span>
+        <div>
+          <span className="rv-score-label">Ajarn</span>
+          <b>{keyOut ? fmt(keyOut.score) : '…'}</b>/8
+        </div>
+      </div>
+      <table className="rv-ded-table">
+        <thead>
+          <tr>
+            <th>
+              <Bi en="Deductions" th="การหักคะแนน" />
+            </th>
+            <th>{big ? 'Group' : 'Your group'}</th>
+            <th>Ajarn</th>
+          </tr>
+        </thead>
+        <tbody>
+          {CRITERIA.map((cr) => {
+            const mine = dedCell(cr.c, ded);
+            const theirs = aj ? dedCell(cr.c, aj) : '…';
+            return (
+              <tr key={cr.c} className={aj && mine !== theirs ? 'differ' : ''}>
+                <td>
+                  {cr.en}
+                  <span className="th" lang="th">
+                    {cr.th}
+                  </span>
+                </td>
+                <td>{mine}</td>
+                <td>{theirs}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

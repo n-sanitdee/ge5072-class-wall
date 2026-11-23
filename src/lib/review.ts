@@ -169,6 +169,62 @@ export function mergeMarks(base: Marks, local: Marks, cur: Marks): Marks {
 
 export const fmt = (n: number | undefined) => (n === undefined ? '…' : Number.isInteger(n) ? String(n) : n.toFixed(1));
 
+// ── 23 Nov 2026 (evening, Mew): a Deductions section right after the fix box. The group takes points off with the
+// course criteria (the Week 16 rubric slide: sentences in each box, grammar, It/They, spelling, punctuation) and sees
+// its score /8; after posting, its deductions and score next to Ajarn's. Field f<k+6> = JSON Ded (co-edited, one key
+// per tap). Ajarn's side is worked out from her marks with scoreOf — build_pool.py and encrypt-pool.ts already check
+// that those marks give her score.
+export const dedKey = (k: number) => `f${k + 6}`;
+export type DedCode = 'mp' | 'mt' | 'g' | 'o' | 's' | 'u';
+export type Ded = Partial<Record<DedCode, number>>;
+export type Criterion = {c: DedCode; en: string; th: string; hint: string; pts: string; once?: true; max: number};
+export const CRITERIA: Criterion[] = [
+  {c: 'mp', en: 'Company Profile: missing sentences', th: 'ความครบถ้วน: Company Profile', hint: 'Needs 6 sentences. A heading or a list of words does not count.', pts: '−1 each', max: NEEDED},
+  {c: 'mt', en: 'Describing Trends: missing sentences', th: 'ความครบถ้วน: Describing Trends', hint: 'Needs 6. A line counts only if it describes a change with a word from the list. A plan does not count.', pts: '−1 each', max: NEEDED},
+  {c: 'g', en: 'Grammar', th: 'ไวยากรณ์', hint: 'Count every grammar mistake.', pts: '−0.5 each · max −5', max: 20},
+  {c: 'o', en: 'It / They', th: 'สรรพนาม', hint: 'The company is "it", never "they".', pts: '−0.5 once', once: true, max: 1},
+  {c: 's', en: 'Spelling', th: 'การสะกดคำ', hint: 'Any word spelt wrong.', pts: '−0.5 once', once: true, max: 1},
+  {c: 'u', en: 'Punctuation', th: 'เครื่องหมายวรรคตอน', hint: 'Full stops, capital letters, commas, spaces.', pts: '−0.5 once', once: true, max: 1},
+];
+
+/** Points off for one criterion (a positive number). */
+export function pointsOff(c: DedCode, n: number | undefined): number {
+  const v = n ?? 0;
+  if (c === 'mp' || c === 'mt') return v;
+  if (c === 'g') return Math.min(5, 0.5 * v);
+  return v ? 0.5 : 0;
+}
+
+export function dedScore(d: Ded): number {
+  return Math.max(0, 8 - CRITERIA.reduce((sum, {c}) => sum + pointsOff(c, d[c]), 0));
+}
+
+export function parseDed(raw: string | undefined | null): Ded {
+  const d = parseJson<Record<string, unknown>>(raw);
+  const out: Ded = {};
+  if (!d || typeof d !== 'object') return out;
+  for (const {c, max} of CRITERIA) {
+    const v = d[c];
+    if (typeof v === 'number' && Number.isFinite(v) && v > 0) out[c] = Math.min(max, Math.round(v));
+  }
+  return out;
+}
+
+/** The group's score as posted with project k (fields.f<k> = {co, sc}); undefined on posts from before 23 Nov evening. */
+export function postedScore(raw: string | undefined | null): number | undefined {
+  const sc = parseJson<{sc?: unknown}>(raw)?.sc;
+  return typeof sc === 'number' && Number.isFinite(sc) ? sc : undefined;
+}
+
+/** Ajarn's deductions, from her marks on the same sentences. */
+export function ajarnDed(h: Handout, key: KeyOut): Ded {
+  const s = scoreOf(
+    h.p.map((_, i) => key.p[i]?.k),
+    h.t.map((_, i) => key.t[i]?.k),
+  );
+  return {mp: s.missingP, mt: s.missingT, g: s.grammar, o: +s.o, s: +s.s, u: +s.u};
+}
+
 // ── the encrypted pool file (public/wk16/pool.enc.json) ──
 export type EncFile = {v: 1; kdf: 'PBKDF2-SHA256'; iter: number; salt: string; iv: string; ct: string};
 
