@@ -3,10 +3,11 @@
 // screenshots the paragraph, writes the fixes on the screenshot and uploads it, or copies the paragraph into the box
 // and fixes it there (or both). After posting, the phone shows the group's version next to Ajarn's. Up to three
 // projects per group. See src/lib/review.ts for the data.
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {Fragment, useCallback, useEffect, useRef, useState} from 'react';
 import {ImageError, prepareImage} from '../lib/image.ts';
 import {
   CRITERIA,
+  DED_GROUPS,
   type Ded,
   type DedCode,
   type Handout,
@@ -15,16 +16,18 @@ import {
   MAX_SHOTS,
   SHOT_CHARS,
   ajarnDed,
+  ajarnScore,
   ajarnUnits,
   copyText,
   dedKey,
   dedScore,
   fmt,
+  groupOff,
+  groupScore,
   paragraphs,
   parseDed,
   parseJson,
   pointsOff,
-  postedScore,
   shotKey,
   shotsOf,
   textKey,
@@ -81,7 +84,7 @@ export function ReviewComposer({client, st}: {client: WallClient; st: WallState}
         rawText={st.mine?.fields?.[textKey(k)]}
         shots={shotsOf(st.mine?.fields?.[shotKey(k)])}
         rawDed={st.mine?.fields?.[dedKey(k)]}
-        sc={postedScore(st.mine?.fields?.[`f${k}`])}
+        sc={groupScore(st.mine?.fields?.[`f${k}`], st.mine?.fields?.[dedKey(k)])}
         posted={posted(k)}
         keyOut={parseJson<KeyOut>(st.rkey?.[k])}
         next={k + 1 < handouts.length ? () => setTab(k + 1) : undefined}
@@ -343,44 +346,53 @@ function Deductions({client, k, raw, flushRef}: {client: WallClient; k: number; 
         <Bi en="Deductions" th="การหักคะแนน" />
       </h3>
       <p className="rv-ded-intro">
-        <Bi en="Start at 8, then take points off — the same criteria Ajarn marks with." th="เริ่มที่ 8 คะแนน แล้วหักตามเกณฑ์เดียวกับที่อาจารย์ใช้ตรวจ" />
+        <Bi en="Start at 8, then take points off in both groups. Ajarn's score uses the same rule." th="เริ่มที่ 8 คะแนน แล้วหักคะแนนทั้งสองหมวด คะแนนของอาจารย์ใช้เกณฑ์เดียวกัน" />
       </p>
-      {CRITERIA.map((cr) => {
-        const v = ded[cr.c] ?? 0;
-        const off = pointsOff(cr.c, v);
+      {DED_GROUPS.map((g, gi) => {
+        const off = groupOff(g.id, ded);
         return (
-          <div key={cr.c} className={`rv-ded-row ${off ? 'off' : ''}`}>
-            <div className="rv-ded-what">
-              <b>{cr.en}</b>
-              <span className="th" lang="th">
-                {cr.th}
-              </span>
-              <span className="rv-ded-hint">
-                {cr.hint} <b>{cr.pts}</b>
-              </span>
+          <div key={g.id} className={`rv-ded-grp grp-${g.id}`} role="group" aria-label={g.en}>
+            <div className="rv-ded-grp-head">
+              <span className="rv-ded-grp-n">{gi + 1}</span>
+              <div className="rv-ded-grp-name">
+                <b>{g.en}</b>
+                <span className="th" lang="th">
+                  {g.th}
+                </span>
+              </div>
+              <span className="rv-ded-grp-pts">{g.pts}</span>
             </div>
-            <div className="rv-ded-ctl">
-              {cr.once ? (
-                <div className="rv-seg" role="group" aria-label={cr.en}>
-                  <button type="button" className={!v ? 'on' : ''} onClick={() => set(cr.c, 0)}>
-                    None
-                  </button>
-                  <button type="button" className={v ? 'on bad' : ''} onClick={() => set(cr.c, 1)}>
-                    Found
-                  </button>
+            {CRITERIA.filter((cr) => cr.grp === g.id).map((cr) => {
+              const v = ded[cr.c] ?? 0;
+              const p = pointsOff(cr.c, v);
+              return (
+                <div key={cr.c} className={`rv-ded-row ${p ? 'off' : ''}`}>
+                  <div className="rv-ded-what">
+                    <b>{cr.en}</b>
+                    <span className="th" lang="th">
+                      {cr.th}
+                    </span>
+                    <span className="rv-ded-hint">
+                      {cr.hint} <b>{cr.pts}</b>
+                    </span>
+                  </div>
+                  <div className="rv-ded-ctl">
+                    <div className="rv-step">
+                      <button type="button" aria-label={`${cr.en}: one less`} onClick={() => set(cr.c, v - 1)} disabled={!v}>
+                        −
+                      </button>
+                      <span className="rv-step-n">{v}</span>
+                      <button type="button" aria-label={`${cr.en}: one more`} onClick={() => set(cr.c, v + 1)} disabled={v >= cr.max}>
+                        +
+                      </button>
+                    </div>
+                    <span className="rv-ded-pts">{p ? `−${fmt(p)}` : '0'}</span>
+                  </div>
                 </div>
-              ) : (
-                <div className="rv-step">
-                  <button type="button" aria-label={`${cr.en}: one less`} onClick={() => set(cr.c, v - 1)} disabled={!v}>
-                    −
-                  </button>
-                  <span className="rv-step-n">{v}</span>
-                  <button type="button" aria-label={`${cr.en}: one more`} onClick={() => set(cr.c, v + 1)} disabled={v >= cr.max}>
-                    +
-                  </button>
-                </div>
-              )}
-              <span className="rv-ded-pts">{off ? `−${fmt(off)}` : '0'}</span>
+              );
+            })}
+            <div className="rv-ded-grp-sum">
+              {g.en}: <b>{off ? `−${fmt(off)}` : '0'}</b>
             </div>
           </div>
         );
@@ -400,13 +412,12 @@ function dedCell(c: DedCode, d: Ded): string {
   if (!v) return '—';
   const off = `−${fmt(pointsOff(c, v))}`;
   if (c === 'mp' || c === 'mt') return `${v} missing (${off})`;
-  if (c === 'g') return `${v} ${v === 1 ? 'mistake' : 'mistakes'} (${off})`;
-  return `found (${off})`;
+  return `${v} ${v === 1 ? 'time' : 'times'} (${off})`;
 }
 
 /** After posting (phone) and on the projector: the group's deductions and score next to Ajarn's. */
 export function ScoreCompare({h, ded, sc, keyOut, big}: {h: Handout; ded: Ded; sc: number; keyOut: KeyOut | null; big?: boolean}) {
-  const aj = keyOut ? ajarnDed(h, keyOut) : null;
+  const aj = keyOut ? ajarnDed(keyOut) : null;
   return (
     <div className={`rv-result ${big ? 'big' : ''}`}>
       <div className="rv-scores">
@@ -417,7 +428,7 @@ export function ScoreCompare({h, ded, sc, keyOut, big}: {h: Handout; ded: Ded; s
         <span className="rv-vs">vs</span>
         <div>
           <span className="rv-score-label">Ajarn</span>
-          <b>{keyOut ? fmt(keyOut.score) : '…'}</b>/8
+          <b>{keyOut ? fmt(ajarnScore(keyOut)) : '…'}</b>/8
         </div>
       </div>
       <table className="rv-ded-table">
@@ -431,22 +442,31 @@ export function ScoreCompare({h, ded, sc, keyOut, big}: {h: Handout; ded: Ded; s
           </tr>
         </thead>
         <tbody>
-          {CRITERIA.map((cr) => {
-            const mine = dedCell(cr.c, ded);
-            const theirs = aj ? dedCell(cr.c, aj) : '…';
-            return (
-              <tr key={cr.c} className={aj && mine !== theirs ? 'differ' : ''}>
-                <td>
-                  {cr.en}
-                  <span className="th" lang="th">
-                    {cr.th}
-                  </span>
-                </td>
-                <td>{mine}</td>
-                <td>{theirs}</td>
+          {DED_GROUPS.map((g) => (
+            <Fragment key={g.id}>
+              <tr className={`rv-grp-row grp-${g.id}`}>
+                <th colSpan={3}>
+                  {g.en} <span className="th" lang="th">{g.th}</span> <span className="rv-grp-pts">{g.pts}</span>
+                </th>
               </tr>
-            );
-          })}
+              {CRITERIA.filter((cr) => cr.grp === g.id).map((cr) => {
+                const mine = dedCell(cr.c, ded);
+                const theirs = aj ? dedCell(cr.c, aj) : '…';
+                return (
+                  <tr key={cr.c} className={aj && mine !== theirs ? 'differ' : ''}>
+                    <td>
+                      {cr.en}
+                      <span className="th" lang="th">
+                        {cr.th}
+                      </span>
+                    </td>
+                    <td>{mine}</td>
+                    <td>{theirs}</td>
+                  </tr>
+                );
+              })}
+            </Fragment>
+          ))}
         </tbody>
       </table>
     </div>

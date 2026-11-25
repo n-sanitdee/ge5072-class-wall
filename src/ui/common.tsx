@@ -2,7 +2,7 @@ import {type CSSProperties, type ReactNode, useEffect, useRef, useState} from 'r
 import {BAD_P, type Chart, type Company, type Preset, shownCharts} from '../lib/presets.ts';
 import {chartSvg} from './chart-svg.ts';
 import type {Post} from '../lib/types.ts';
-import {type KeyOut, MAX_PROJECTS, fmt, parseJson, postedScore, shotKey, shotsOf, textKey} from '../lib/review.ts';
+import {type KeyOut, MAX_PROJECTS, ajarnScore, dedKey, fmt, groupScore, parseJson, shotKey, shotsOf, textKey} from '../lib/review.ts';
 
 /** Mew named it, 22 Oct 2026. */
 export const APP_NAME = 'Ladpet';
@@ -221,12 +221,14 @@ export function reviewRows(post: Post, rkey?: Record<string, string>): {co: stri
         co: s.co,
         shot: shotsOf(post.fields?.[shotKey(k)]).length > 0,
         text: !!post.fields?.[textKey(k)]?.trim(),
-        sc: postedScore(raw),
-        aj: parseJson<KeyOut>(rkey?.[k])?.score,
+        sc: groupScore(raw, post.fields?.[dedKey(k)]),
+        aj: aj(parseJson<KeyOut>(rkey?.[k])),
       });
   }
   return out;
 }
+
+const aj = (key: KeyOut | null) => (key ? ajarnScore(key) : undefined);
 
 /** Rotating card colours (Padlet-like), light enough for dark text. */
 export const CARD_TINTS = ['#fde2ec', '#e0e7ff', '#dcfce7', '#fef3c7', '#e0f2fe', '#f3e8ff', '#ffedd5', '#ccfbf1'];

@@ -3,7 +3,7 @@
 // once (#host?k=…, see main.tsx), and this computer remembers it.
 import {type FormEvent, useEffect, useState} from 'react';
 import {autoUnlock, cachedPool, forgetPass, unlockPool} from '../lib/pool.ts';
-import {type Handout, type KeyOut, MAX_PROJECTS, type Pool, dedKey, parseDed, parseJson, postedScore, shotKey, shotsOf, textKey} from '../lib/review.ts';
+import {type Handout, type KeyOut, MAX_PROJECTS, type Pool, dedKey, groupScore, parseDed, parseJson, shotKey, shotsOf, textKey} from '../lib/review.ts';
 import type {Post} from '../lib/types.ts';
 import {ScoreCompare, Versions} from '../student/Review.tsx';
 
@@ -103,8 +103,8 @@ export function ReviewDetail({post, review, rkey}: {post: Post; review?: Record<
         <section key={k} className="rv-detail-project">
           <h3>{h.co}</h3>
           <Versions h={h} text={post.fields?.[textKey(k)]} shots={shotsOf(post.fields?.[shotKey(k)])} keyOut={key} big />
-          {postedScore(post.fields?.[`f${k}`]) !== undefined && (
-            <ScoreCompare h={h} ded={parseDed(post.fields?.[dedKey(k)])} sc={postedScore(post.fields?.[`f${k}`])!} keyOut={key} big />
+          {groupScore(post.fields?.[`f${k}`], post.fields?.[dedKey(k)]) !== undefined && (
+            <ScoreCompare h={h} ded={parseDed(post.fields?.[dedKey(k)])} sc={groupScore(post.fields?.[`f${k}`], post.fields?.[dedKey(k)])!} keyOut={key} big />
           )}
         </section>
       ))}

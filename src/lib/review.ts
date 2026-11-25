@@ -170,29 +170,41 @@ export function mergeMarks(base: Marks, local: Marks, cur: Marks): Marks {
 export const fmt = (n: number | undefined) => (n === undefined ? '…' : Number.isInteger(n) ? String(n) : n.toFixed(1));
 
 // ── 23 Nov 2026 (evening, Mew): a Deductions section right after the fix box. The group takes points off with the
-// course criteria (the Week 16 rubric slide: sentences in each box, grammar, It/They, spelling, punctuation) and sees
-// its score /8; after posting, its deductions and score next to Ajarn's. Field f<k+6> = JSON Ded (co-edited, one key
-// per tap). Ajarn's side is worked out from her marks with scoreOf — build_pool.py and encrypt-pool.ts already check
-// that those marks give her score.
+// course criteria and sees its score /8; after posting, its deductions and score next to Ajarn's. Field f<k+6> = JSON
+// Ded (co-edited, one key per tap).
+// ── 25 Nov 2026 (Mew): two groups with a clear border — "Number of sentences" (Company Profile, Describing Trends:
+// −1 per missing sentence) and "Grammar" (It/They, Spelling, Punctuation: −/+ counters, −0.5 EACH TIME, no cap). The
+// general Grammar counter (g, −0.5 each, max −5) is gone: old posts' g is ignored. Ajarn's side is recounted with the
+// same rule (Mew: "Recount Ajarn too"): the number of sentences she marked for each of o/s/u, so her Ladpet score
+// (ajarnScore) can differ from the grade she gave (KeyOut.score, still checked by scoreOf in encrypt-pool.ts). The
+// group's score is likewise recounted from its saved deductions (groupScore), so walls from before the change read
+// the same way.
 export const dedKey = (k: number) => `f${k + 6}`;
-export type DedCode = 'mp' | 'mt' | 'g' | 'o' | 's' | 'u';
+export type DedCode = 'mp' | 'mt' | 'o' | 's' | 'u';
 export type Ded = Partial<Record<DedCode, number>>;
-export type Criterion = {c: DedCode; en: string; th: string; hint: string; pts: string; once?: true; max: number};
+export type DedGroup = 'n' | 'l';
+export const DED_GROUPS: {id: DedGroup; en: string; th: string; pts: string}[] = [
+  {id: 'n', en: 'Number of sentences', th: 'จำนวนประโยค', pts: '−1 each missing'},
+  {id: 'l', en: 'Grammar', th: 'ไวยากรณ์', pts: '−0.5 each time'},
+];
+export type Criterion = {c: DedCode; grp: DedGroup; en: string; th: string; hint: string; pts: string; max: number};
 export const CRITERIA: Criterion[] = [
-  {c: 'mp', en: 'Company Profile: missing sentences', th: 'ความครบถ้วน: Company Profile', hint: 'Needs 6 sentences. A heading or a list of words does not count.', pts: '−1 each', max: NEEDED},
-  {c: 'mt', en: 'Describing Trends: missing sentences', th: 'ความครบถ้วน: Describing Trends', hint: 'Needs 6. A line counts only if it describes a change with a word from the list. A plan does not count.', pts: '−1 each', max: NEEDED},
-  {c: 'g', en: 'Grammar', th: 'ไวยากรณ์', hint: 'Count every grammar mistake.', pts: '−0.5 each · max −5', max: 20},
-  {c: 'o', en: 'It / They', th: 'สรรพนาม', hint: 'The company is "it", never "they".', pts: '−0.5 once', once: true, max: 1},
-  {c: 's', en: 'Spelling', th: 'การสะกดคำ', hint: 'Any word spelt wrong.', pts: '−0.5 once', once: true, max: 1},
-  {c: 'u', en: 'Punctuation', th: 'เครื่องหมายวรรคตอน', hint: 'Full stops, capital letters, commas, spaces.', pts: '−0.5 once', once: true, max: 1},
+  {c: 'mp', grp: 'n', en: 'Company Profile', th: 'ประโยคที่ขาดใน Company Profile', hint: 'Needs 6 sentences. A heading or a list of words does not count.', pts: '−1 each missing', max: NEEDED},
+  {c: 'mt', grp: 'n', en: 'Describing Trends', th: 'ประโยคที่ขาดใน Describing Trends', hint: 'Needs 6. A line counts only if it describes a change with a word from the list. A plan does not count.', pts: '−1 each missing', max: NEEDED},
+  {c: 'o', grp: 'l', en: 'It / They', th: 'สรรพนาม', hint: 'The company is "it", never "they". Count each time.', pts: '−0.5 each time', max: 20},
+  {c: 's', grp: 'l', en: 'Spelling', th: 'การสะกดคำ', hint: 'Count each word spelt wrong.', pts: '−0.5 each time', max: 20},
+  {c: 'u', grp: 'l', en: 'Punctuation', th: 'เครื่องหมายวรรคตอน', hint: 'Count each slip: full stops, capital letters, commas, spaces.', pts: '−0.5 each time', max: 20},
 ];
 
 /** Points off for one criterion (a positive number). */
 export function pointsOff(c: DedCode, n: number | undefined): number {
   const v = n ?? 0;
-  if (c === 'mp' || c === 'mt') return v;
-  if (c === 'g') return Math.min(5, 0.5 * v);
-  return v ? 0.5 : 0;
+  return c === 'mp' || c === 'mt' ? v : 0.5 * v;
+}
+
+/** Points off for one group of criteria. */
+export function groupOff(g: DedGroup, d: Ded): number {
+  return CRITERIA.filter((x) => x.grp === g).reduce((sum, {c}) => sum + pointsOff(c, d[c]), 0);
 }
 
 export function dedScore(d: Ded): number {
@@ -216,14 +228,24 @@ export function postedScore(raw: string | undefined | null): number | undefined 
   return typeof sc === 'number' && Number.isFinite(sc) ? sc : undefined;
 }
 
-/** Ajarn's deductions, from her marks on the same sentences. */
-export function ajarnDed(h: Handout, key: KeyOut): Ded {
-  const s = scoreOf(
-    h.p.map((_, i) => key.p[i]?.k),
-    h.t.map((_, i) => key.t[i]?.k),
-  );
-  return {mp: s.missingP, mt: s.missingT, g: s.grammar, o: +s.o, s: +s.s, u: +s.u};
+/** The group's score as shown: recounted from its saved deductions with today's rule (undefined if it posted before
+ *  the Deductions section existed). */
+export function groupScore(postRaw: string | undefined | null, dedRaw: string | undefined | null): number | undefined {
+  return postedScore(postRaw) === undefined ? undefined : dedScore(parseDed(dedRaw));
 }
+
+/** Ajarn's deductions, from her marks on the same sentences: missing sentences as she counted them, and for It/They,
+ *  spelling and punctuation the number of sentences she marked with that problem. */
+export function ajarnDed(key: KeyOut): Ded {
+  const p = key.p.map((u) => u?.k);
+  const t = key.t.map((u) => u?.k);
+  const s = scoreOf(p, t);
+  const n = (c: 'o' | 's' | 'u') => [...p, ...t].filter((k) => k?.[c]).length;
+  return {mp: s.missingP, mt: s.missingT, o: n('o'), s: n('s'), u: n('u')};
+}
+
+/** Ajarn's score on Ladpet: the same rule as the group's (it can differ from the grade she gave). */
+export const ajarnScore = (key: KeyOut) => dedScore(ajarnDed(key));
 
 // ── the encrypted pool file (public/wk16/pool.enc.json) ──
 export type EncFile = {v: 1; kdf: 'PBKDF2-SHA256'; iter: number; salt: string; iv: string; ct: string};

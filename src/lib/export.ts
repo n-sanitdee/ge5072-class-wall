@@ -3,7 +3,7 @@ import {GOOD_P, NINE, type Preset, fullTitle, shownCharts, titleParts} from './p
 import {chartSvg} from '../ui/chart-svg.ts';
 import {type Post, type Pub, type Team, isPosted} from './types.ts';
 import {defaultGroupName} from './wall-client.ts';
-import {CRITERIA, type DedCode, type Ded, type Handout, type KeyOut, MAX_PROJECTS, ajarnDed, ajarnUnits, dedKey, fmt, parseDed, parseJson, pointsOff, postedScore, shotKey, shotsOf, textKey} from './review.ts';
+import {CRITERIA, DED_GROUPS, type DedCode, type Ded, type Handout, type KeyOut, MAX_PROJECTS, ajarnDed, ajarnScore, ajarnUnits, dedKey, fmt, groupScore, parseDed, parseJson, pointsOff, shotKey, shotsOf, textKey} from './review.ts';
 
 /** Wk16: every project a group posted — its version (screenshot and/or fixed text) next to Ajarn's (Save the Ladpet
  *  = Mew's own copy; 23 Nov 2026 redesign, no marks or scores). */
@@ -26,17 +26,23 @@ function reviewHtml(p: Post, review?: Record<string, string>, rkey?: Record<stri
       const notes = units.filter((u) => u.n).map((u) => `<li value="${u.n}">${esc(u.note!)}</li>`).join('');
       aj = `<h4>Company Profile</h4>${part('p')}<h4>Describing Trends</h4>${part('t')}${key.note ? `<p class="note">${esc(key.note)}</p>` : ''}${notes ? `<ol class="notes">${notes}</ol>` : ''}`;
     }
-    const sc = postedScore(p.fields[`f${k}`]);
+    const sc = groupScore(p.fields[`f${k}`], p.fields[dedKey(k)]);
     let scores = '';
     if (sc !== undefined) {
       const ded = parseDed(p.fields[dedKey(k)]);
-      const ajd = key ? ajarnDed(h, key) : null;
-      const rows = CRITERIA.map(({c, en}) => {
-        const g = dedText(c, ded);
-        const a = ajd ? dedText(c, ajd) : '…';
-        return `<tr${ajd && g !== a ? ' class="differ"' : ''}><td>${esc(en)}</td><td>${g}</td><td>${a}</td></tr>`;
-      }).join('');
-      scores = `<table class="ded"><thead><tr><th>Deductions</th><th>Group ${fmt(sc)}/8</th><th>Ajarn ${key ? fmt(key.score) : '…'}/8</th></tr></thead><tbody>${rows}</tbody></table>`;
+      const ajd = key ? ajarnDed(key) : null;
+      const rows = DED_GROUPS.map(
+        (grp) =>
+          `<tr class="grp"><th colspan="3">${esc(grp.en)} · ${esc(grp.pts)}</th></tr>` +
+          CRITERIA.filter((x) => x.grp === grp.id)
+            .map(({c, en}) => {
+              const g = dedText(c, ded);
+              const a = ajd ? dedText(c, ajd) : '…';
+              return `<tr${ajd && g !== a ? ' class="differ"' : ''}><td>${esc(en)}</td><td>${g}</td><td>${a}</td></tr>`;
+            })
+            .join(''),
+      ).join('');
+      scores = `<table class="ded"><thead><tr><th>Deductions</th><th>Group ${fmt(sc)}/8</th><th>Ajarn ${key ? fmt(ajarnScore(key)) : '…'}/8</th></tr></thead><tbody>${rows}</tbody></table>`;
     }
     out.push(`<section class="rv"><div class="tag">${esc(h.co)}</div><div class="vs"><div><h4>Group's version</h4>${mine}</div><div><h4>Ajarn's version</h4>${aj}</div></div>${scores}</section>`);
   }
@@ -47,7 +53,7 @@ function dedText(c: DedCode, d: Ded): string {
   const v = d[c] ?? 0;
   if (!v) return '—';
   const off = `−${fmt(pointsOff(c, v))}`;
-  return c === 'mp' || c === 'mt' ? `${v} missing (${off})` : c === 'g' ? `${v} (${off})` : `found (${off})`;
+  return c === 'mp' || c === 'mt' ? `${v} missing (${off})` : `${v} ${v === 1 ? 'time' : 'times'} (${off})`;
 }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]!);
@@ -152,7 +158,7 @@ dl{margin:0}dt{font-size:12px;font-weight:700;text-transform:uppercase;letter-sp
 .text{white-space:pre-wrap;margin:4px 0}
 .para{margin:2px 0;line-height:1.5}
 main.review{columns:auto;display:block}main.review article{margin:0 0 18px}
-.rv .vs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}.rv .vs>div{border:1px solid #e3e5f1;border-radius:10px;padding:8px 10px}.rv h4{margin:6px 0 2px;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.04em}.rv img{max-width:100%;border-radius:8px}.rv .fixed{white-space:pre-wrap}.rv mark{background:#fff1b8}.rv sup{font-weight:700;color:#b45309}.rv .notes{font-size:13px;padding-left:20px}.rv .note,.rv p.note{color:#64748b;font-size:13px;margin:2px 0}.rv table.ded{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}.rv .ded th,.rv .ded td{border-top:1px solid #e3e5f1;padding:4px 6px;text-align:left}.rv .ded th{color:#64748b;font-size:12px}.rv .ded tr.differ td{background:#fff8eb}@media(max-width:700px){.rv .vs{grid-template-columns:1fr}}
+.rv .vs{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:6px}.rv .vs>div{border:1px solid #e3e5f1;border-radius:10px;padding:8px 10px}.rv h4{margin:6px 0 2px;font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.04em}.rv img{max-width:100%;border-radius:8px}.rv .fixed{white-space:pre-wrap}.rv mark{background:#fff1b8}.rv sup{font-weight:700;color:#b45309}.rv .notes{font-size:13px;padding-left:20px}.rv .note,.rv p.note{color:#64748b;font-size:13px;margin:2px 0}.rv table.ded{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px}.rv .ded th,.rv .ded td{border-top:1px solid #e3e5f1;padding:4px 6px;text-align:left}.rv .ded th{color:#64748b;font-size:12px}.rv .ded tr.differ td{background:#fff8eb}.rv .ded tr.grp th{background:#eef2ff;color:#1e3a8a;font-size:12px;text-transform:uppercase;letter-spacing:.04em;border-top:2px solid #6366f1}@media(max-width:700px){.rv .vs{grid-template-columns:1fr}}
 main.companies{columns:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,640px),1fr));gap:16px;align-items:start}main.companies article{margin:0}
 .aspects{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px}.aspect{border:1px solid #e3e5f1;border-radius:10px;padding:6px 8px}.aspect .chart-head{font-size:12px}.aspect svg{width:100%;height:auto;display:block}
 section.chart{break-inside:avoid;background:#fff;border:2px solid var(--accent);border-radius:14px;padding:10px 12px;margin:0 0 16px}
