@@ -15,6 +15,9 @@ import {
   MAX_PROJECTS,
   MAX_SHOTS,
   SHOT_CHARS,
+  AJARN_RULE,
+  OTHER_GRAMMAR,
+  ajarnCell,
   ajarnDed,
   ajarnScore,
   ajarnUnits,
@@ -22,12 +25,14 @@ import {
   dedKey,
   dedScore,
   fmt,
+  groupCell,
   groupOff,
   groupScore,
   paragraphs,
   parseDed,
   parseJson,
   pointsOff,
+  rowDiffers,
   shotKey,
   shotsOf,
   textKey,
@@ -406,16 +411,8 @@ function Deductions({client, k, raw, flushRef}: {client: WallClient; k: number; 
   );
 }
 
-/** What one criterion's deduction looks like in the comparison table. */
-function dedCell(c: DedCode, d: Ded): string {
-  const v = d[c] ?? 0;
-  if (!v) return '—';
-  const off = `−${fmt(pointsOff(c, v))}`;
-  if (c === 'mp' || c === 'mt') return `${v} missing (${off})`;
-  return `${v} ${v === 1 ? 'time' : 'times'} (${off})`;
-}
-
-/** After posting (phone) and on the projector: the group's deductions and score next to Ajarn's. */
+/** After posting (phone) and on the projector: the group's deductions and score next to Ajarn's (her grade and her
+ *  deductions as she graded; 26 Nov 2026). */
 export function ScoreCompare({h, ded, sc, keyOut, big}: {h: Handout; ded: Ded; sc: number; keyOut: KeyOut | null; big?: boolean}) {
   const aj = keyOut ? ajarnDed(keyOut) : null;
   return (
@@ -449,26 +446,35 @@ export function ScoreCompare({h, ded, sc, keyOut, big}: {h: Handout; ded: Ded; s
                   {g.en} <span className="th" lang="th">{g.th}</span> <span className="rv-grp-pts">{g.pts}</span>
                 </th>
               </tr>
-              {CRITERIA.filter((cr) => cr.grp === g.id).map((cr) => {
-                const mine = dedCell(cr.c, ded);
-                const theirs = aj ? dedCell(cr.c, aj) : '…';
-                return (
-                  <tr key={cr.c} className={aj && mine !== theirs ? 'differ' : ''}>
-                    <td>
-                      {cr.en}
-                      <span className="th" lang="th">
-                        {cr.th}
-                      </span>
-                    </td>
-                    <td>{mine}</td>
-                    <td>{theirs}</td>
-                  </tr>
-                );
-              })}
+              {CRITERIA.filter((cr) => cr.grp === g.id).map((cr) => (
+                <tr key={cr.c} className={aj && rowDiffers(cr.c, ded, aj) ? 'differ' : ''}>
+                  <td>
+                    {cr.en}
+                    <span className="th" lang="th">
+                      {cr.th}
+                    </span>
+                  </td>
+                  <td>{groupCell(cr.c, ded)}</td>
+                  <td>{aj ? ajarnCell(cr.c, aj) : '…'}</td>
+                </tr>
+              ))}
+              {g.id === 'l' && aj && aj.g > 0 && (
+                <tr className="differ rv-aj-only">
+                  <td>
+                    {OTHER_GRAMMAR.en}
+                    <span className="th" lang="th">
+                      {OTHER_GRAMMAR.th} · {OTHER_GRAMMAR.hint}
+                    </span>
+                  </td>
+                  <td>—</td>
+                  <td>{ajarnCell('g', aj)}</td>
+                </tr>
+              )}
             </Fragment>
           ))}
         </tbody>
       </table>
+      {aj && <Bi className="rv-aj-rule" en={AJARN_RULE.en} th={AJARN_RULE.th} />}
     </div>
   );
 }

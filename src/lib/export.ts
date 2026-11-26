@@ -3,7 +3,7 @@ import {GOOD_P, NINE, type Preset, fullTitle, shownCharts, titleParts} from './p
 import {chartSvg} from '../ui/chart-svg.ts';
 import {type Post, type Pub, type Team, isPosted} from './types.ts';
 import {defaultGroupName} from './wall-client.ts';
-import {CRITERIA, DED_GROUPS, type DedCode, type Ded, type Handout, type KeyOut, MAX_PROJECTS, ajarnDed, ajarnScore, ajarnUnits, dedKey, fmt, groupScore, parseDed, parseJson, pointsOff, shotKey, shotsOf, textKey} from './review.ts';
+import {AJARN_RULE, CRITERIA, DED_GROUPS, type Handout, type KeyOut, MAX_PROJECTS, OTHER_GRAMMAR, ajarnCell, ajarnDed, ajarnScore, ajarnUnits, dedKey, fmt, groupCell, groupScore, parseDed, parseJson, rowDiffers, shotKey, shotsOf, textKey} from './review.ts';
 
 /** Wk16: every project a group posted — its version (screenshot and/or fixed text) next to Ajarn's (Save the Ladpet
  *  = Mew's own copy; 23 Nov 2026 redesign, no marks or scores). */
@@ -35,25 +35,15 @@ function reviewHtml(p: Post, review?: Record<string, string>, rkey?: Record<stri
         (grp) =>
           `<tr class="grp"><th colspan="3">${esc(grp.en)} · ${esc(grp.pts)}</th></tr>` +
           CRITERIA.filter((x) => x.grp === grp.id)
-            .map(({c, en}) => {
-              const g = dedText(c, ded);
-              const a = ajd ? dedText(c, ajd) : '…';
-              return `<tr${ajd && g !== a ? ' class="differ"' : ''}><td>${esc(en)}</td><td>${g}</td><td>${a}</td></tr>`;
-            })
-            .join(''),
+            .map(({c, en}) => `<tr${ajd && rowDiffers(c, ded, ajd) ? ' class="differ"' : ''}><td>${esc(en)}</td><td>${groupCell(c, ded)}</td><td>${ajd ? ajarnCell(c, ajd) : '…'}</td></tr>`)
+            .join('') +
+          (grp.id === 'l' && ajd && ajd.g > 0 ? `<tr class="differ"><td>${esc(OTHER_GRAMMAR.en)} <small>(${esc(OTHER_GRAMMAR.hint)})</small></td><td>—</td><td>${ajarnCell('g', ajd)}</td></tr>` : ''),
       ).join('');
-      scores = `<table class="ded"><thead><tr><th>Deductions</th><th>Group ${fmt(sc)}/8</th><th>Ajarn ${key ? fmt(ajarnScore(key)) : '…'}/8</th></tr></thead><tbody>${rows}</tbody></table>`;
+      scores = `<table class="ded"><thead><tr><th>Deductions</th><th>Group ${fmt(sc)}/8</th><th>Ajarn ${key ? fmt(ajarnScore(key)) : '…'}/8</th></tr></thead><tbody>${rows}</tbody></table>${ajd ? `<p class="note">${esc(AJARN_RULE.en)}</p>` : ''}`;
     }
     out.push(`<section class="rv"><div class="tag">${esc(h.co)}</div><div class="vs"><div><h4>Group's version</h4>${mine}</div><div><h4>Ajarn's version</h4>${aj}</div></div>${scores}</section>`);
   }
   return out.join('');
-}
-
-function dedText(c: DedCode, d: Ded): string {
-  const v = d[c] ?? 0;
-  if (!v) return '—';
-  const off = `−${fmt(pointsOff(c, v))}`;
-  return c === 'mp' || c === 'mt' ? `${v} missing (${off})` : `${v} ${v === 1 ? 'time' : 'times'} (${off})`;
 }
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'})[c]!);

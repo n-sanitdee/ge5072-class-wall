@@ -174,11 +174,9 @@ export const fmt = (n: number | undefined) => (n === undefined ? '…' : Number.
 // Ded (co-edited, one key per tap).
 // ── 25 Nov 2026 (Mew): two groups with a clear border — "Number of sentences" (Company Profile, Describing Trends:
 // −1 per missing sentence) and "Grammar" (It/They, Spelling, Punctuation: −/+ counters, −0.5 EACH TIME, no cap). The
-// general Grammar counter (g, −0.5 each, max −5) is gone: old posts' g is ignored. Ajarn's side is recounted with the
-// same rule (Mew: "Recount Ajarn too"): the number of sentences she marked for each of o/s/u, so her Ladpet score
-// (ajarnScore) can differ from the grade she gave (KeyOut.score, still checked by scoreOf in encrypt-pool.ts). The
-// group's score is likewise recounted from its saved deductions (groupScore), so walls from before the change read
-// the same way.
+// general Grammar counter (g, −0.5 each, max −5) is gone: old posts' g is ignored. (Ajarn's side was recounted with
+// the same rule until 26 Nov; it is now the grade she gave: see ajarnScore below.) The group's score is recounted
+// from its saved deductions (groupScore), so walls from before the change read the same way.
 export const dedKey = (k: number) => `f${k + 6}`;
 export type DedCode = 'mp' | 'mt' | 'o' | 's' | 'u';
 export type Ded = Partial<Record<DedCode, number>>;
@@ -234,18 +232,64 @@ export function groupScore(postRaw: string | undefined | null, dedRaw: string | 
   return postedScore(postRaw) === undefined ? undefined : dedScore(parseDed(dedRaw));
 }
 
-/** Ajarn's deductions, from her marks on the same sentences: missing sentences as she counted them, and for It/They,
- *  spelling and punctuation the number of sentences she marked with that problem. */
-export function ajarnDed(key: KeyOut): Ded {
+// ── 26 Nov 2026 (Mew: "the ajarn version calculate scores wrong" → "Your real grade"): the 25 Nov recount dropped
+// her general grammar marks together with the groups' Grammar row, so 12 of the 45 projects showed Ajarn ABOVE the
+// grade she gave (Happy Grain 8 for a 6). Ajarn's score on Ladpet is now the grade she gave (KeyOut.score, which
+// encrypt-pool.ts checks against scoreOf on her marks), and her column shows her deductions the way she graded:
+// missing sentences −1 each, her other grammar mistakes −0.5 each (max −5, an Ajarn-only row: the group form has no
+// such counter) and It/They, spelling, punctuation −0.5 ONCE each (with the number of sentences she marked). The
+// group's side is unchanged (25 Nov rule).
+export type AjarnCode = DedCode | 'g';
+/** mp/mt = missing sentences; g = grammar mistakes; o/s/u = how many sentences she marked with that problem. */
+export type AjarnDed = Record<AjarnCode, number>;
+export const OTHER_GRAMMAR = {c: 'g' as const, en: 'Other grammar', th: 'ไวยากรณ์อื่น ๆ', hint: 'Ajarn only (not on the group form)'};
+
+/** Ajarn's deductions, from her marks on the same sentences. */
+export function ajarnDed(key: KeyOut): AjarnDed {
   const p = key.p.map((u) => u?.k);
   const t = key.t.map((u) => u?.k);
   const s = scoreOf(p, t);
   const n = (c: 'o' | 's' | 'u') => [...p, ...t].filter((k) => k?.[c]).length;
-  return {mp: s.missingP, mt: s.missingT, o: n('o'), s: n('s'), u: n('u')};
+  return {mp: s.missingP, mt: s.missingT, g: s.grammar, o: n('o'), s: n('s'), u: n('u')};
 }
 
-/** Ajarn's score on Ladpet: the same rule as the group's (it can differ from the grade she gave). */
-export const ajarnScore = (key: KeyOut) => dedScore(ajarnDed(key));
+/** Points Ajarn took off for one criterion, the way she grades (scoreOf). */
+export function ajarnOff(c: AjarnCode, d: AjarnDed): number {
+  const v = d[c] ?? 0;
+  if (c === 'mp' || c === 'mt') return v;
+  if (c === 'g') return Math.min(5, 0.5 * v);
+  return v ? 0.5 : 0;
+}
+
+/** Ajarn's score on Ladpet = the grade she gave. */
+export const ajarnScore = (key: KeyOut) => key.score;
+
+/** The group's cell in the comparison table. */
+export function groupCell(c: DedCode, d: Ded): string {
+  const v = d[c] ?? 0;
+  if (!v) return '—';
+  const off = `−${fmt(pointsOff(c, v))}`;
+  return c === 'mp' || c === 'mt' ? `${v} missing (${off})` : `${v} ${v === 1 ? 'time' : 'times'} (${off})`;
+}
+
+/** Ajarn's cell in the comparison table. */
+export function ajarnCell(c: AjarnCode, d: AjarnDed): string {
+  const v = d[c] ?? 0;
+  if (!v) return '—';
+  const off = `−${fmt(ajarnOff(c, d))}`;
+  if (c === 'mp' || c === 'mt') return `${v} missing (${off})`;
+  if (c === 'g') return `${v} ${v === 1 ? 'mistake' : 'mistakes'} (${off}${0.5 * v > 5 ? ', max' : ''})`;
+  return `${v} ${v === 1 ? 'sentence' : 'sentences'} (${off} once)`;
+}
+
+/** A row of the table is tinted when the two sides took off different points. */
+export const rowDiffers = (c: AjarnCode, ded: Ded, aj: AjarnDed) => (c === 'g' ? 0 : pointsOff(c, ded[c])) !== ajarnOff(c, aj);
+
+/** The line under the table that says how Ajarn's column is counted. */
+export const AJARN_RULE = {
+  en: "Ajarn's column is the grade she gave: It/They, spelling and punctuation −0.5 once each; other grammar mistakes −0.5 each (max −5).",
+  th: 'คอลัมน์ Ajarn คือคะแนนที่อาจารย์ให้จริง: It/They การสะกดคำ และเครื่องหมายวรรคตอน หักหัวข้อละ 0.5 ครั้งเดียว ไวยากรณ์อื่น ๆ หักจุดละ 0.5 (สูงสุด 5 คะแนน)',
+};
 
 // ── the encrypted pool file (public/wk16/pool.enc.json) ──
 export type EncFile = {v: 1; kdf: 'PBKDF2-SHA256'; iter: number; salt: string; iv: string; ct: string};

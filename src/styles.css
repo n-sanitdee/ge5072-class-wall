@@ -2338,6 +2338,9 @@ html.is-host {
 .rv-ded-table tr.rv-grp-row .rv-grp-pts { float: right; font-weight: 800; color: var(--grp-c); }
 .rv-result.big { margin-top: 10px; }
 .rv-result.big .rv-ded-table { font-size: 16px; }
+.rv-result .rv-aj-rule { display: block; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.rv-result .rv-aj-rule .th { display: block; }
+.rv-result.big .rv-aj-rule { font-size: 14px; }
 .review-sum .rev-score { font-size: 0.9em; }
 .review-sum .rev-score b { font-size: 1.15em; }
 .review-sum .rev-score span { opacity: 0.7; }
